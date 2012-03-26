@@ -10,7 +10,7 @@ directory.  You could upload a full tarball of your website every
 time you update but that's wasteful.  git-ftp.py only uploads the
 files that changed.
 
-Requirements: [git-python 0.3.x](http://gitorious.org/git-python)  
+Requirements: [git-python 0.3.x](http://gitorious.org/git-python)
 it can be installed with `easy_install gitpython`
 
 We also [have a PPA](https://launchpad.net/~niklas-fiekas/+archive/ppa)
@@ -19,10 +19,13 @@ and then `sudo aptitude install git-ftp`.
 
 Usage: `python git-ftp.py`
 
-Note: If you run git-ftp.py for the first time on an existing project 
-you should upload to the hosting server a `git-rev.txt` file containing 
-SHA1 of the last commit which is already present there. Otherwise git-ftp.py 
-will upload and overwite the whole project which is not necessary.
+Note: If you run git-ftp.py for the first time on an existing project and you
+already have files on the FTP server, you can execute
+`git ftp -r <revision-on-ftp>` to only upload changes since that revision. That
+avoids a full upload of all files, that might be unnecessary. If you are using
+another git repository as a proxy, it might be easier to place a `git-rev.txt`
+on the server. It should contain the SHA1 of the last commit which is already
+present there.
 
 Storing the FTP credentials
 ---------------------------
@@ -59,16 +62,16 @@ however you can specify your own for every branch in .git/ftpdata:
 
 Used syntax is same as .gitignore's with the exception of overriding patterns,
 eg. `**!**some/pattern`, which is not supported
-Negations within patterns works as expected. 
+Negations within patterns works as expected.
 
 Using a bare repository as a proxy
 ----------------------------------
 
 An additional script post-receive is provided to allow a central bare repository
-to act as a proxy between the git users and the ftp server.  
+to act as a proxy between the git users and the ftp server.
 Pushing on branches that don't have an entry in the `ftpdata` configuration file
 will have the default git behavior (`git-ftp.py` doesn't get called).
-One advantage is that **users do not get to know the ftp credentials** (perfect for interns).  
+One advantage is that **users do not get to know the ftp credentials** (perfect for interns).
 This is how the workflow looks like:
 
     User1 --+                          +--> FTP_staging
