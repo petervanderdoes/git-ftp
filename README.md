@@ -67,9 +67,9 @@ The sections are named:
 - hotfix/*
 - support/*
 
-Example:
+**Example:**
 
-The following is setup in `.git.ftpdata`
+The following is setup in `.git/ftpdata`
  
     [feature/*]
     username=me
