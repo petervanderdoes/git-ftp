@@ -134,10 +134,16 @@ def parse_args():
             help="use this branch instead of the active one")
     parser.add_option('-c', '--commit', dest="commit", default=None,
             help="use this commit instead of HEAD")
+    parser.add_option('--version', action="store_true", dest="show_version",
+                      default=False, help='displays the version number')
     options, args = parser.parse_args()
     configure_logging(options)
     if len(args) > 1:
         parser.error("too many arguments")
+    if options.show_version:
+        version_str = "1.0.0"
+        print "git-ftp version %s " % (version_str)
+        sys.exit(0)
     if args: cwd = args[0]
     else: cwd = "."
     repo = Repo(cwd)
