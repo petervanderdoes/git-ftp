@@ -98,7 +98,7 @@ def main():
         hashFile = cStringIO.StringIO()
         try:
             ftp.retrbinary('RETR git-rev.txt', hashFile.write)
-            hash = hashFile.getvalue().strip()
+            hash = hashFile.getvalue()
         except ftplib.error_perm:
             pass
 
@@ -195,17 +195,31 @@ def get_ftp_creds(repo, options):
             raise FtpDataOldVersion("Please rename the [ftp] section to [branch]. " +
                                     "Take a look at the README for more information")
 
+        options_branch = options.branch
+        git_config = repo.config_reader()
+
+
+        if not cfg.has_section(options.branch):
+            if options.branch.startswith(git_config.get('gitflow "prefix"','feature')):
+                options_branch='feature/*'
+            elif options.branch.startswith(git_config.get('gitflow "prefix"','hotfix')):
+                options_branch='hotfix/*'
+            elif options.branch.startswith(git_config.get('gitflow "prefix"','release')):
+                options_branch='release/*'
+            elif options.branch.startswith(git_config.get('gitflow "prefix"','support')):
+                options_branch='support/*'
+
         # just in case you do not want to store your ftp password.
         try:
-            options.ftp.password = cfg.get(options.branch,'password')
+            options.ftp.password = cfg.get(options_branch,'password')
         except ConfigParser.NoOptionError:
             options.ftp.password = getpass.getpass('FTP Password: ')
 
-        options.ftp.username = cfg.get(options.branch,'username')
-        options.ftp.hostname = cfg.get(options.branch,'hostname')
-        options.ftp.remotepath = cfg.get(options.branch,'remotepath')
+        options.ftp.username = cfg.get(options_branch,'username')
+        options.ftp.hostname = cfg.get(options_branch,'hostname')
+        options.ftp.remotepath = cfg.get(options_branch,'remotepath')
         try:
-            options.ftp.ssl = boolish(cfg.get(options.branch,'ssl'))
+            options.ftp.ssl = boolish(cfg.get(options_branch,'ssl'))
         except ConfigParser.NoOptionError:
             options.ftp.ssl = False
     else:
