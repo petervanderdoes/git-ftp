@@ -13,6 +13,9 @@
 
 # Changelog
 
+#### 1.1.0-dev.1
+* Preparation for new development cycle.
+
 #### 1.0.0
 * Introduce wildcard sections
 
