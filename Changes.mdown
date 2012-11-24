@@ -1,20 +1,10 @@
 [petervanderdoes]: https://github.com/petervanderdoes "Peter van der Does on github"
-[bloveridge]:  https://github.com/bloveridge "Ben Loveridge on github"
-[memleak]: https://github.com/memleak/
-[sinbad]: https://github.com/sinbad
-[bloomonkey]: https://github.com/bloomonkey
-[mallamanis]: https://github.com/mallamanis
-[kperi]: https://github.com/kperi
-[gvangool]: https://github.com/gvangool
-[baby-gnu]: https://github.com/baby-gnu
-[pcragone]: https://github.com/pcragone
-[mykehsd]: https://github.com/mykehsd
-[jeromebaum]: https://github.com/jeromebaum 
 
 # Changelog
 
 #### 1.1.0-dev.1
-* Preparation for new development cycle.
+[Peter van der Does][petervanderdoes]
+* Handle execution in a non git repository
 
 #### 1.0.0
 * Introduce wildcard sections
