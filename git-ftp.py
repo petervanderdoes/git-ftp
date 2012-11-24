@@ -52,7 +52,7 @@ if LooseVersion(git_version) < '0.3.0':
     print 'git-ftp requires git-python 0.3.0 or newer; %s provided.' % git_version
     exit(1)
 
-from git import Tree, Blob, Repo, Git, Submodule
+from git import *
 
 class BranchNotFound(Exception):
     pass
@@ -146,7 +146,12 @@ def parse_args():
         sys.exit(0)
     if args: cwd = args[0]
     else: cwd = "."
-    repo = Repo(cwd)
+
+    try:
+        repo = Repo(cwd)
+    except InvalidGitRepositoryError:
+        logging.error('No git repository found')
+        exit()
 
     if not options.branch:
         options.branch = repo.active_branch.name
