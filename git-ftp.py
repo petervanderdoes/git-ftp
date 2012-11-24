@@ -67,6 +67,10 @@ def main():
     Git.git_binary = 'git' # Windows doesn't like env
 
     repo, options, args = parse_args()
+    try:
+        repo, options, args = parse_args()
+    except BranchNotFound:
+        exit()
 
     if repo.is_dirty() and not options.commit:
         logging.warning("Working copy is dirty; uncommitted changes will NOT be uploaded")
@@ -209,7 +213,6 @@ def get_ftp_creds(repo, options):
         options_branch = options.branch
         git_config = repo.config_reader()
 
-
         if not cfg.has_section(options.branch):
             if options.branch.startswith(git_config.get('gitflow "prefix"','feature')):
                 options_branch='feature/*'
@@ -219,6 +222,9 @@ def get_ftp_creds(repo, options):
                 options_branch='release/*'
             elif options.branch.startswith(git_config.get('gitflow "prefix"','support')):
                 options_branch='support/*'
+            else:
+                logging.error("Please configure settings for branch '%s'" % options.branch)
+                raise BranchNotFound()
 
         # just in case you do not want to store your ftp password.
         try:

@@ -1,10 +1,14 @@
 [petervanderdoes]: https://github.com/petervanderdoes "Peter van der Does on github"
+[umeku]: https://github.com/umeku
 
 # Changelog
 
 #### 1.1.0-dev.1
 [Peter van der Does][petervanderdoes]
 * Handle execution in a non git repository
+
+[umeku][umeku]
+* Handle executing on a non-configured branch
 
 #### 1.0.0
 * Introduce wildcard sections
