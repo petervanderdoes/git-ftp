@@ -10,19 +10,23 @@ directory.  You could upload a full tarball of your website every
 time you update but that's wasteful.  git-ftp.py only uploads the
 files that changed.
 
+This fork has been adapted to work with [git-flow (AVH Edition)](http://bit.ly/S2k1S2).
+
+Installation
+------------
 Requirements: [git-python 0.3.x](http://gitorious.org/git-python)  
 it can be installed with `easy_install gitpython`
 
-We also [have a PPA](https://launchpad.net/~niklas-fiekas/+archive/ppa)
-which you can install with `sudo add-apt-repository ppa:niklas-fiekas/ppa`
-and then `sudo aptitude install git-ftp`.
+`sudo make Makefile`
 
-Usage: `python git-ftp.py`
+Usage
+-----
+Usage: `git ftp`
 
-Note: If you run git-ftp.py for the first time on an existing project 
+Note: If you run git-ftp for the first time on an existing project 
 you should upload to the hosting server a `git-rev.txt` file containing 
 SHA1 of the last commit which is already present there. Otherwise git-ftp.py 
-will upload and overwite the whole project which is not necessary.
+will upload and overwrite the whole project which is not necessary.
 
 Storing the FTP credentials
 ---------------------------
@@ -36,7 +40,14 @@ You can place FTP credentials in `.git/ftpdata`, as such:
     remotepath=/htdocs
     ssl=yes
 
-    [staging]
+    [develop]
+    username=me
+    password=s00perP4zzw0rd
+    hostname=ftp.hostname.com
+    remotepath=/htdocs/develop
+    ssl=no
+
+    [release/*]
     username=me
     password=s00perP4zzw0rd
     hostname=ftp.hostname.com
@@ -45,6 +56,40 @@ You can place FTP credentials in `.git/ftpdata`, as such:
 
 Each section corresponds to a git branch. FTP SSL support needs Python
 2.7 or later.
+
+For git-flow there are four special wildcard sections. Each of the wildcard 
+section corresponds with a branch as used by git-flow. If a section is found 
+with the full name that section will be used.
+
+The sections are named:
+- feature/*
+- release/*
+- hotfix/*
+- support/*
+
+**Example:**
+
+The following is setup in `.git/ftpdata`
+ 
+    [feature/*]
+    username=me
+    password=s00perP4zzw0rd
+    hostname=ftp.hostname1.com
+    remotepath=/htdocs/testing
+    ssl=no
+
+    [feature/lots-of-work]
+    username=me
+    password=s00perP4zzw0rd
+    hostname=ftp.hostname2.com
+    remotepath=/htdocs/testing
+    ssl=no
+
+If you are on the branch `feature/new-feature` and do a `git ftp`, it will be 
+uploaded to `ftp.hostname1.com` as defined in the section `feature/*`. If you 
+are on the branch `feature/lots-of-work` and do a `git ftp`, it will be 
+uploaded to `ftp.hostname2.com` as defined in the 
+section `feature/lots-of-work`.
 
 Using a bare repository as a proxy
 ----------------------------------
