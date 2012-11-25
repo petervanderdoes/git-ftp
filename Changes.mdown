@@ -3,12 +3,13 @@
 
 # Changelog
 
-#### 1.1.0-dev.4
+#### 1.1.0-dev.11
 [Peter van der Does][petervanderdoes]
-* Handle execution in a non git repository
+* Handle execution in a non git repository.
 
 [umeku][umeku]
-* Handle executing on a non-configured branch
+* Handle executing on a non-configured branch.
+* Allow git-rev.txt to have a newline after hash.
 
 #### 1.0.0
 * Introduce wildcard sections
