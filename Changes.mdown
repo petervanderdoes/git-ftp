@@ -1,0 +1,18 @@
+[petervanderdoes]: https://github.com/petervanderdoes "Peter van der Does on github"
+[umeku]: https://github.com/umeku
+
+# Changelog
+
+#### 1.1.0-dev.11
+[Peter van der Does][petervanderdoes]
+* Handle execution in a non git repository.
+
+[umeku][umeku]
+* Handle executing on a non-configured branch.
+* Allow git-rev.txt to have a newline after hash.
+
+#### 1.0.0
+* Introduce wildcard sections
+
+#### 0.0.0
+* Original fork.

@@ -54,7 +54,7 @@ if LooseVersion(git_version) < '0.3.0':
     print 'git-ftp requires git-python 0.3.0 or newer; %s provided.' % git_version
     exit(1)
 
-from git import Tree, Blob, Repo, Git, Submodule
+from git import *
 
 class BranchNotFound(Exception):
     pass
@@ -112,6 +112,10 @@ def main():
     Git.git_binary = 'git' # Windows doesn't like env
 
     repo, options, args = parse_args()
+    try:
+        repo, options, args = parse_args()
+    except BranchNotFound:
+        exit()
 
     if repo.is_dirty() and not options.commit:
         logging.warning("Working copy is dirty; uncommitted changes will NOT be uploaded")
@@ -143,7 +147,7 @@ def main():
         hashFile = cStringIO.StringIO()
         try:
             ftp.retrbinary('RETR git-rev.txt', hashFile.write)
-            hash = hashFile.getvalue()
+            hash = hashFile.getvalue().strip()
         except ftplib.error_perm:
             pass
 
@@ -198,13 +202,24 @@ def parse_args():
             help="use this branch instead of the active one")
     parser.add_option('-c', '--commit', dest="commit", default=None,
             help="use this commit instead of HEAD")
+    parser.add_option('--version', action="store_true", dest="show_version",
+                      default=False, help='displays the version number')
     options, args = parser.parse_args()
     configure_logging(options)
     if len(args) > 1:
         parser.error("too many arguments")
+    if options.show_version:
+        version_str = "1.1.0-dev.11"
+        print "git-ftp version %s " % (version_str)
+        sys.exit(0)
     if args: cwd = args[0]
     else: cwd = "."
-    repo = Repo(cwd)
+
+    try:
+        repo = Repo(cwd)
+    except InvalidGitRepositoryError:
+        logging.error('No git repository found')
+        exit()
 
     if not options.branch:
         options.branch = repo.active_branch.name
@@ -261,17 +276,33 @@ def get_ftp_creds(repo, options):
             raise FtpDataOldVersion("Please rename the [ftp] section to [branch]. " +
                                     "Take a look at the README for more information")
 
+        options_branch = options.branch
+        git_config = repo.config_reader()
+
+        if not cfg.has_section(options.branch):
+            if options.branch.startswith(git_config.get('gitflow "prefix"','feature')):
+                options_branch='feature/*'
+            elif options.branch.startswith(git_config.get('gitflow "prefix"','hotfix')):
+                options_branch='hotfix/*'
+            elif options.branch.startswith(git_config.get('gitflow "prefix"','release')):
+                options_branch='release/*'
+            elif options.branch.startswith(git_config.get('gitflow "prefix"','support')):
+                options_branch='support/*'
+            else:
+                logging.error("Please configure settings for branch '%s'" % options.branch)
+                raise BranchNotFound()
+
         # just in case you do not want to store your ftp password.
         try:
-            options.ftp.password = cfg.get(options.branch,'password')
+            options.ftp.password = cfg.get(options_branch,'password')
         except ConfigParser.NoOptionError:
             options.ftp.password = getpass.getpass('FTP Password: ')
 
-        options.ftp.username = cfg.get(options.branch,'username')
-        options.ftp.hostname = cfg.get(options.branch,'hostname')
-        options.ftp.remotepath = cfg.get(options.branch,'remotepath')
+        options.ftp.username = cfg.get(options_branch,'username')
+        options.ftp.hostname = cfg.get(options_branch,'hostname')
+        options.ftp.remotepath = cfg.get(options_branch,'remotepath')
         try:
-            options.ftp.ssl = boolish(cfg.get(options.branch,'ssl'))
+            options.ftp.ssl = boolish(cfg.get(options_branch,'ssl'))
         except ConfigParser.NoOptionError:
             options.ftp.ssl = False
 
