@@ -23,10 +23,13 @@ Usage
 -----
 Usage: `git ftp`
 
-Note: If you run git-ftp for the first time on an existing project 
-you should upload to the hosting server a `git-rev.txt` file containing 
-SHA1 of the last commit which is already present there. Otherwise git-ftp.py 
-will upload and overwrite the whole project which is not necessary.
+Note: If you run git-ftp.py for the first time on an existing project and you
+already have files on the FTP server, you can execute
+`git ftp -r <revision-on-ftp>` to only upload changes since that revision. That
+avoids a full upload of all files, that might be unnecessary. If you are using
+another git repository as a proxy, it might be easier to place a `git-rev.txt`
+on the server. It should contain the SHA1 of the last commit which is already
+present there.
 
 Storing the FTP credentials
 ---------------------------
@@ -91,14 +94,29 @@ are on the branch `feature/lots-of-work` and do a `git ftp`, it will be
 uploaded to `ftp.hostname2.com` as defined in the 
 section `feature/lots-of-work`.
 
+Exluding certain files from uploading
+-------------------------------------
+
+Similarly to `.gitignore` you can specify files which you do not wish to upload.
+The default file with ignore patterns is `.gitftpignore` in project root directory,
+however you can specify your own for every branch in .git/ftpdata:
+
+    [branch]
+    ... credentials ...
+    gitftpignore=.my_gitftpignore
+
+Used syntax is same as .gitignore's with the exception of overriding patterns,
+eg. `**!**some/pattern`, which is not supported
+Negations within patterns works as expected.
+
 Using a bare repository as a proxy
 ----------------------------------
 
 An additional script post-receive is provided to allow a central bare repository
-to act as a proxy between the git users and the ftp server.  
+to act as a proxy between the git users and the ftp server.
 Pushing on branches that don't have an entry in the `ftpdata` configuration file
 will have the default git behavior (`git-ftp.py` doesn't get called).
-One advantage is that **users do not get to know the ftp credentials** (perfect for interns).  
+One advantage is that **users do not get to know the ftp credentials** (perfect for interns).
 This is how the workflow looks like:
 
     User1 --+                          +--> FTP_staging
