@@ -1,11 +1,15 @@
 [petervanderdoes]: https://github.com/petervanderdoes "Peter van der Does on github"
 [umeku]: https://github.com/umeku
+[niklasf]: https://github.com/niklasf
 
 # Changelog
 
 #### 1.1.0-dev.21
 [Peter van der Does][petervanderdoes]
 * Handle execution in a non git repository.
+* Merge with git-ftp repository from [Niklas Fiekas][niklasf]    
+  Introduces several improvements over the original repository. Including the
+  ability for excluding certain files from uploading.
 
 [umeku][umeku]
 * Handle executing on a non-configured branch.
