@@ -34,7 +34,7 @@ import cStringIO
 import re
 import sys
 import os.path
-import posixpath # use this for ftp manipulation
+import posixpath  # use this for ftp manipulation
 import getpass
 import ConfigParser
 import optparse
@@ -54,50 +54,58 @@ if LooseVersion(git_version) < '0.3.0':
     print 'git-ftp requires git-python 0.3.0 or newer; %s provided.' % git_version
     exit(1)
 
-from git import *
+from git import Blob, Repo, Git, Submodule
 
 class BranchNotFound(Exception):
     pass
 
+
 class FtpDataOldVersion(Exception):
     pass
+
 
 class FtpSslNotSupported(Exception):
     pass
 
+
+class SectionNotFound(Exception):
+    pass
+
+
 def split_pattern(path):
     path = fnmatch.translate(path).split('\\/')
-    for i,p in enumerate(path[:-1]):
+    for i, p in enumerate(path[:-1]):
         if p:
             path[i] = p + '\\Z(?ms)'
     return path
 
-
+# ezyang: This code is pretty skeevy; there is probably a better,
+# more obviously correct way of spelling it. Refactor me...
 def is_ignored(path, regex):
     regex = split_pattern(os.path.normcase(regex))
     path = os.path.normcase(path).split('/')
 
     regex_pos = path_pos = 0
-    if regex[0] == '': # leading slash - root dir must match
+    if regex[0] == '':  # leading slash - root dir must match
         if path[0] != '' or not re.match(regex[1], path[1]):
             return False
         regex_pos = path_pos = 2
-    
-    if not regex_pos: # find beginning of regex
-        for i,p in enumerate(path):
+
+    if not regex_pos:  # find beginning of regex
+        for i, p in enumerate(path):
             if re.match(regex[0], p):
                 regex_pos = 1
                 path_pos = i + 1
                 break
         else:
             return False
-    
+
     if len(path[path_pos:]) < len(regex[regex_pos:]):
         return False
 
     n = len(regex)
-    for r in regex[regex_pos:]: # match the rest
-        if regex_pos + 1 == n: # last item; if empty match anything
+    for r in regex[regex_pos:]:  # match the rest
+        if regex_pos + 1 == n:  # last item; if empty match anything
             if re.match(r, ''):
                 return True
 
@@ -105,11 +113,12 @@ def is_ignored(path, regex):
             return False
         path_pos += 1
         regex_pos += 1
-    
+
     return True
 
+
 def main():
-    Git.git_binary = 'git' # Windows doesn't like env
+    Git.git_binary = 'git'  # Windows doesn't like env
 
     repo, options, args = parse_args()
     try:
@@ -129,9 +138,9 @@ def main():
     commit = branch.commit
     if options.commit:
         commit = repo.commit(options.commit)
-    tree   = commit.tree
+    tree = commit.tree
     if options.ftp.ssl:
-        if hasattr(ftplib, 'FTP_TLS'): # SSL new in 2.7+
+        if hasattr(ftplib, 'FTP_TLS'):  # SSL new in 2.7+
             ftp = ftplib.FTP_TLS(options.ftp.hostname, options.ftp.username, options.ftp.password)
             ftp.prot_p()
             logging.info("Using SSL")
@@ -174,6 +183,7 @@ def main():
     ftp.storbinary('STOR git-rev.txt', cStringIO.StringIO(commit.hexsha))
     ftp.quit()
 
+
 def parse_ftpignore(rawPatterns):
     patterns = []
     for pat in rawPatterns:
@@ -204,6 +214,8 @@ def parse_args():
             help="use this commit instead of HEAD")
     parser.add_option('--version', action="store_true", dest="show_version",
                       default=False, help='displays the version number')
+    parser.add_option('-s', '--section', dest="section", default=None,
+            help="use this section from ftpdata instead of branch name")
     options, args = parser.parse_args()
     configure_logging(options)
     if len(args) > 1:
@@ -212,9 +224,10 @@ def parse_args():
         version_str = "1.2.0-dev.1"
         print "git-ftp version %s " % (version_str)
         sys.exit(0)
-    if args: cwd = args[0]
-    else: cwd = "."
-
+    if args:
+        cwd = args[0]
+    else:
+        cwd = "."
     try:
         repo = Repo(cwd)
     except InvalidGitRepositoryError:
@@ -224,19 +237,26 @@ def parse_args():
     if not options.branch:
         options.branch = repo.active_branch.name
 
+    if not options.section:
+        options.section = options.branch
+
     get_ftp_creds(repo, options)
     return repo, options, args
 
+
 def configure_logging(options):
     logger = logging.getLogger()
-    if not options.quiet: logger.setLevel(logging.INFO)
+    if not options.quiet:
+        logger.setLevel(logging.INFO)
     ch = logging.StreamHandler(sys.stderr)
     formatter = logging.Formatter("%(levelname)s: %(message)s")
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
+
 def format_mode(mode):
     return "%o" % (mode & 0o777)
+
 
 class FtpData():
     password = None
@@ -245,6 +265,7 @@ class FtpData():
     remotepath = None
     ssl = None
     gitftpignore = None
+
 
 def get_ftp_creds(repo, options):
     """
@@ -272,9 +293,13 @@ def get_ftp_creds(repo, options):
         logging.info("Using .git/ftpdata")
         cfg.read(ftpdata)
 
-        if (not cfg.has_section(options.branch)) and cfg.has_section('ftp'):
-            raise FtpDataOldVersion("Please rename the [ftp] section to [branch]. " +
-                                    "Take a look at the README for more information")
+        if (not cfg.has_section(options.section)):
+            if cfg.has_section('ftp'):
+                raise FtpDataOldVersion("Please rename the [ftp] section to [branch]. " +
+                                        "Take a look at the README for more information")
+            else:
+                raise SectionNotFound("Your .git/ftpdata file does not contain a section " +
+                                     "named '%s'" % options.section)
 
         options_branch = options.branch
         git_config = repo.config_reader()
@@ -294,24 +319,24 @@ def get_ftp_creds(repo, options):
 
         # just in case you do not want to store your ftp password.
         try:
-            options.ftp.password = cfg.get(options_branch,'password')
+            options.ftp.password = cfg.get(options.section, 'password')
         except ConfigParser.NoOptionError:
             options.ftp.password = getpass.getpass('FTP Password: ')
 
-        options.ftp.username = cfg.get(options_branch,'username')
-        options.ftp.hostname = cfg.get(options_branch,'hostname')
-        options.ftp.remotepath = cfg.get(options_branch,'remotepath')
+        options.ftp.username = cfg.get(options.section, 'username')
+        options.ftp.hostname = cfg.get(options.section, 'hostname')
+        options.ftp.remotepath = cfg.get(options.section, 'remotepath')
         try:
-            options.ftp.ssl = boolish(cfg.get(options_branch,'ssl'))
+            options.ftp.ssl = boolish(cfg.get(options.section, 'ssl'))
         except ConfigParser.NoOptionError:
             options.ftp.ssl = False
 
         try:
-            options.ftp.gitftpignore = cfg.get(options.branch,'gitftpignore')
+            options.ftp.gitftpignore = cfg.get(options.branch, 'gitftpignore')
         except ConfigParser.NoOptionError:
             options.ftp.gitftpignore = '.gitftpignore'
     else:
-        print "Please configure settings for branch '%s'" % options.branch
+        print "Please configure settings for branch '%s'" % options.section
         options.ftp.username = raw_input('FTP Username: ')
         options.ftp.password = getpass.getpass('FTP Password: ')
         options.ftp.hostname = raw_input('FTP Hostname: ')
@@ -323,17 +348,19 @@ def get_ftp_creds(repo, options):
 
         # set default branch
         if ask_ok("Should I write ftp details to .git/ftpdata? "):
-            cfg.add_section(options.branch)
-            cfg.set(options.branch, 'username', options.ftp.username)
-            cfg.set(options.branch, 'password', options.ftp.password)
-            cfg.set(options.branch, 'hostname', options.ftp.hostname)
-            cfg.set(options.branch, 'remotepath', options.ftp.remotepath)
-            cfg.set(options.branch, 'ssl', options.ftp.ssl)
+            cfg.add_section(options.section)
+            cfg.set(options.section, 'username', options.ftp.username)
+            cfg.set(options.section, 'password', options.ftp.password)
+            cfg.set(options.section, 'hostname', options.ftp.hostname)
+            cfg.set(options.section, 'remotepath', options.ftp.remotepath)
+            cfg.set(options.section, 'ssl', options.ftp.ssl)
             f = open(ftpdata, 'w')
             cfg.write(f)
 
+
 def get_empty_tree(repo):
     return repo.tree(repo.git.hash_object('-w', '-t', 'tree', os.devnull))
+
 
 def upload_diff(repo, oldtree, tree, ftp, base, ignored):
     """
@@ -357,10 +384,11 @@ def upload_diff(repo, oldtree, tree, ftp, base, ignored):
 
     """
     # -z is used so we don't have to deal with quotes in path matching
-    diff = repo.git.diff("--name-status", "-z", "--no-renames", oldtree.hexsha, tree.hexsha)
+    diff = repo.git.diff("--name-status", "--no-renames", "-z", oldtree.hexsha, tree.hexsha)
     diff = iter(diff.split("\0"))
     for line in diff:
-        if not line: continue
+        if not line:
+            continue
         status, file = line, next(diff)
         assert status in ['A', 'D', 'M']
 
@@ -375,6 +403,7 @@ def upload_diff(repo, oldtree, tree, ftp, base, ignored):
                 logging.info('Deleted ' + file)
             except ftplib.error_perm:
                 logging.warning('Failed to delete ' + file)
+
             # Now let's see if we need to remove some subdirectories
             def generate_parent_dirs(x):
                 # invariant: x is a filename
@@ -405,7 +434,7 @@ def upload_diff(repo, oldtree, tree, ftp, base, ignored):
                     assert isinstance(node, Submodule)
                     directories = file.split("/")
                 for c in directories:
-                    subtree = subtree/c
+                    subtree = subtree / c
                     try:
                         ftp.mkd(subtree.path)
                     except ftplib.error_perm:
@@ -420,7 +449,7 @@ def upload_diff(repo, oldtree, tree, ftp, base, ignored):
                     module_oldtree = get_empty_tree(module)
                 else:
                     oldnode = oldtree[file]
-                    assert isinstance(oldnode, Submodule) # TODO: What if not?
+                    assert isinstance(oldnode, Submodule)  # TODO: What if not?
                     module_oldtree = module.commit(oldnode.hexsha).tree
                 module_base = base + [node.path]
                 logging.info('Entering submodule %s', node.path)
@@ -429,7 +458,8 @@ def upload_diff(repo, oldtree, tree, ftp, base, ignored):
                 logging.info('Leaving submodule %s', node.path)
                 ftp.cwd(posixpath.join(*base))
 
-def is_ignored_path(path, patterns, quiet = False):
+
+def is_ignored_path(path, patterns, quiet=False):
     """Returns true if a filepath is ignored by gitftpignore."""
     if is_special_file(path):
         return True
@@ -438,17 +468,20 @@ def is_ignored_path(path, patterns, quiet = False):
             return True
     return False
 
+
 def is_special_file(name):
     """Returns true if a file is some special Git metadata and not content."""
     return posixpath.basename(name) in ['.gitignore', '.gitattributes', '.gitmodules']
 
-def upload_blob(blob, ftp, quiet = False):
+
+def upload_blob(blob, ftp, quiet=False):
     """
     Uploads a blob.  Pre-condition on ftp is that our current working
     directory is the root directory of the repository being uploaded
     (that means DON'T use ftp.cwd; we'll use full paths appropriately).
     """
-    if not quiet: logging.info('Uploading ' + blob.path)
+    if not quiet:
+        logging.info('Uploading ' + blob.path)
     try:
         ftp.delete(blob.path)
     except ftplib.error_perm:
@@ -461,10 +494,14 @@ def upload_blob(blob, ftp, quiet = False):
         logging.warning('Failed to chmod ' + blob.path)
         pass
 
+
 def boolish(s):
-    if s in ('1', 'true', 'y', 'ye', 'yes', 'on'): return True
-    if s in ('0', 'false', 'n', 'no', 'off'): return False
+    if s in ('1', 'true', 'y', 'ye', 'yes', 'on'):
+        return True
+    if s in ('0', 'false', 'n', 'no', 'off'):
+        return False
     return None
+
 
 def ask_ok(prompt, retries=4, complaint='Yes or no, please!'):
     while True:
