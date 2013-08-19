@@ -221,7 +221,7 @@ def parse_args():
     if len(args) > 1:
         parser.error("too many arguments")
     if options.show_version:
-        version_str = "1.2.0-rc.1"
+        version_str = "1.2.0"
         print "git-ftp version %s " % (version_str)
         sys.exit(0)
     if args:
