@@ -3,7 +3,8 @@
 """
 git-ftp: painless, quick and easy working copy syncing over FTP
 
-Copyright (c) 2008-2012
+Copyright (c) 2008-2016
+Peter van der Does <peter@avirtualhome.com>
 Edward Z. Yang <ezyang@mit.edu>, Mauro Lizaur <mauro@cacavoladora.org> and
 Niklas Fiekas <niklas.fiekas@googlemail.com>
 
@@ -30,17 +31,20 @@ OTHER DEALINGS IN THE SOFTWARE.
 """
 
 import ftplib
-import cStringIO
 import re
 import sys
 import os.path
 import posixpath  # use this for ftp manipulation
 import getpass
-import ConfigParser
 import optparse
 import logging
 import textwrap
 import fnmatch
+from io import BytesIO
+try:
+    import configparser as ConfigParser
+except ImportError:
+    import ConfigParser
 
 # Note about Tree.path/Blob.path: *real* Git trees and blobs don't
 # actually provide path information, but the git-python bindings, as a
@@ -51,7 +55,7 @@ from distutils.version import LooseVersion
 from git import __version__ as git_version
 
 if LooseVersion(git_version) < '0.3.0':
-    print 'git-ftp requires git-python 0.3.0 or newer; %s provided.' % git_version
+    print ('git-ftp requires git-python 0.3.0 or newer; %s provided.' % git_version)
     exit(1)
 
 from git import Blob, Repo, Git, Submodule
@@ -132,7 +136,7 @@ def main():
     base = options.ftp.remotepath
     logging.info("Base directory is %s", base)
     try:
-        branch = (h for h in repo.heads if h.name == options.branch).next()
+        branch = next(h for h in repo.heads if h.name == options.branch)
     except StopIteration:
         raise BranchNotFound
     commit = branch.commit
@@ -153,10 +157,10 @@ def main():
     # Check revision
     hash = options.revision
     if not options.force and not hash:
-        hashFile = cStringIO.StringIO()
+        hashFile = BytesIO()
         try:
             ftp.retrbinary('RETR git-rev.txt', hashFile.write)
-            hash = hashFile.getvalue().strip()
+            hash = hashFile.getvalue().decode('utf-8').strip()
         except ftplib.error_perm:
             pass
 
@@ -180,7 +184,7 @@ def main():
     else:
         upload_diff(repo, oldtree, tree, ftp, [base], patterns)
 
-    ftp.storbinary('STOR git-rev.txt', cStringIO.StringIO(commit.hexsha))
+    ftp.storbinary('STOR git-rev.txt',BytesIO(commit.hexsha.encode('utf-8')))
     ftp.quit()
 
 
@@ -222,7 +226,7 @@ def parse_args():
         parser.error("too many arguments")
     if options.show_version:
         version_str = "1.3.0-dev.1"
-        print "git-ftp version %s " % (version_str)
+        print ("git-ftp version %s " % (version_str))
         sys.exit(0)
     if args:
         cwd = args[0]
@@ -336,11 +340,11 @@ def get_ftp_creds(repo, options):
         except ConfigParser.NoOptionError:
             options.ftp.gitftpignore = '.gitftpignore'
     else:
-        print "Please configure settings for branch '%s'" % options.section
-        options.ftp.username = raw_input('FTP Username: ')
+        print ("Please configure settings for branch '%s'" % options.section)
+        options.ftp.username = input('FTP Username: ')
         options.ftp.password = getpass.getpass('FTP Password: ')
-        options.ftp.hostname = raw_input('FTP Hostname: ')
-        options.ftp.remotepath = raw_input('Remote Path: ')
+        options.ftp.hostname = input('FTP Hostname: ')
+        options.ftp.remotepath = input('Remote Path: ')
         if hasattr(ftplib, 'FTP_TLS'):
             options.ftp.ssl = ask_ok('Use SSL? ')
         else:
@@ -505,14 +509,14 @@ def boolish(s):
 
 def ask_ok(prompt, retries=4, complaint='Yes or no, please!'):
     while True:
-        ok = raw_input(prompt).lower()
+        ok = input(prompt).lower()
         r = boolish(ok)
         if r is not None:
             return r
         retries = retries - 1
         if retries < 0:
             raise IOError('Wrong user input.')
-        print complaint
+        print (complaint)
 
 if __name__ == "__main__":
     main()
