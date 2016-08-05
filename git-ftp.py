@@ -41,6 +41,7 @@ import logging
 import textwrap
 import fnmatch
 from io import BytesIO
+
 try:
     import configparser as ConfigParser
 except ImportError:
@@ -55,10 +56,11 @@ from distutils.version import LooseVersion
 from git import __version__ as git_version
 
 if LooseVersion(git_version) < '0.3.0':
-    print ('git-ftp requires git-python 0.3.0 or newer; %s provided.' % git_version)
+    print('git-ftp requires git-python 0.3.0 or newer; %s provided.' % git_version)
     exit(1)
 
 from git import Blob, Repo, Git, Submodule, InvalidGitRepositoryError
+
 
 class BranchNotFound(Exception):
     pass
@@ -82,6 +84,7 @@ def split_pattern(path):  # TODO: Improve skeevy code
         if p:
             path[i] = p + '\\Z(?ms)'
     return path
+
 
 # ezyang: This code is pretty skeevy; there is probably a better,
 # more obviously correct way of spelling it. Refactor me...
@@ -183,7 +186,7 @@ def main():
         logging.info('Nothing to do!')
     else:
         upload_diff(repo, oldtree, tree, ftp, [base], patterns)
-        ftp.storbinary('STOR git-rev.txt',BytesIO(commit.hexsha.encode('utf-8')))
+        ftp.storbinary('STOR git-rev.txt', BytesIO(commit.hexsha.encode('utf-8')))
 
     ftp.quit()
 
@@ -207,26 +210,26 @@ def parse_args():
            """
     parser = optparse.OptionParser(usage, description=textwrap.dedent(desc))
     parser.add_option('-f', '--force', dest="force", action="store_true", default=False,
-            help="force the reupload of all files")
+                      help="force the reupload of all files")
     parser.add_option('-q', '--quiet', dest="quiet", action="store_true", default=False,
-            help="quiet output")
+                      help="quiet output")
     parser.add_option('-r', '--revision', dest="revision", default=None,
-            help="use this revision instead of the server stored one")
+                      help="use this revision instead of the server stored one")
     parser.add_option('-b', '--branch', dest="branch", default=None,
-            help="use this branch instead of the active one")
+                      help="use this branch instead of the active one")
     parser.add_option('-c', '--commit', dest="commit", default=None,
-            help="use this commit instead of HEAD")
+                      help="use this commit instead of HEAD")
     parser.add_option('--version', action="store_true", dest="show_version",
                       default=False, help='displays the version number')
     parser.add_option('-s', '--section', dest="section", default=None,
-            help="use this section from ftpdata instead of branch name")
+                      help="use this section from ftpdata instead of branch name")
     options, args = parser.parse_args()
     configure_logging(options)
     if len(args) > 1:
         parser.error("too many arguments")
     if options.show_version:
         version_str = "1.3.0-dev.1"
-        print ("git-ftp version %s " % (version_str))
+        print("git-ftp version %s " % (version_str))
         sys.exit(0)
     if args:
         cwd = args[0]
@@ -303,20 +306,20 @@ def get_ftp_creds(repo, options):
                                         "Take a look at the README for more information")
             else:
                 raise SectionNotFound("Your .git/ftpdata file does not contain a section " +
-                                     "named '%s'" % options.section)
+                                      "named '%s'" % options.section)
 
         options_branch = options.branch
         git_config = repo.config_reader()
 
         if not cfg.has_section(options.branch):
-            if options.branch.startswith(git_config.get('gitflow "prefix"','feature')):
-                options_branch='feature/*'
-            elif options.branch.startswith(git_config.get('gitflow "prefix"','hotfix')):
-                options_branch='hotfix/*'
-            elif options.branch.startswith(git_config.get('gitflow "prefix"','release')):
-                options_branch='release/*'
-            elif options.branch.startswith(git_config.get('gitflow "prefix"','support')):
-                options_branch='support/*'
+            if options.branch.startswith(git_config.get('gitflow "prefix"', 'feature')):
+                options_branch = 'feature/*'
+            elif options.branch.startswith(git_config.get('gitflow "prefix"', 'hotfix')):
+                options_branch = 'hotfix/*'
+            elif options.branch.startswith(git_config.get('gitflow "prefix"', 'release')):
+                options_branch = 'release/*'
+            elif options.branch.startswith(git_config.get('gitflow "prefix"', 'support')):
+                options_branch = 'support/*'
             else:
                 logging.error("Please configure settings for branch '%s'" % options.branch)
                 raise BranchNotFound()
@@ -340,7 +343,7 @@ def get_ftp_creds(repo, options):
         except ConfigParser.NoOptionError:
             options.ftp.gitftpignore = '.gitftpignore'
     else:
-        print ("Please configure settings for branch '%s'" % options.section)
+        print("Please configure settings for branch '%s'" % options.section)
         options.ftp.username = input('FTP Username: ')
         options.ftp.password = getpass.getpass('FTP Password: ')
         options.ftp.hostname = input('FTP Hostname: ')
@@ -414,6 +417,7 @@ def upload_diff(repo, oldtree, tree, ftp, base, ignored):
                 while '/' in x:
                     x = posixpath.dirname(x)
                     yield x
+
             for dir in generate_parent_dirs(file):
                 try:
                     # unfortunately, dir in tree doesn't work for subdirs
@@ -516,7 +520,8 @@ def ask_ok(prompt, retries=4, complaint='Yes or no, please!'):
         retries = retries - 1
         if retries < 0:
             raise IOError('Wrong user input.')
-        print (complaint)
+        print(complaint)
+
 
 if __name__ == "__main__":
     main()
