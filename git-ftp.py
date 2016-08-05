@@ -183,8 +183,8 @@ def main():
         logging.info('Nothing to do!')
     else:
         upload_diff(repo, oldtree, tree, ftp, [base], patterns)
+        ftp.storbinary('STOR git-rev.txt',BytesIO(commit.hexsha.encode('utf-8')))
 
-    ftp.storbinary('STOR git-rev.txt',BytesIO(commit.hexsha.encode('utf-8')))
     ftp.quit()
 
 
