@@ -97,6 +97,12 @@ section `feature/lots-of-work`.
 Exluding certain files from uploading
 -------------------------------------
 
+By default the following files will never be uploaded:
+- `.gitignore`
+- `.gitattributes`
+- `.gitmodules`
+- `.gitftpignore`
+
 Similarly to `.gitignore` you can specify files which you do not wish to upload.
 The default file with ignore patterns is `.gitftpignore` in project root directory,
 however you can specify your own for every branch in .git/ftpdata:
