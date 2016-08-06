@@ -41,6 +41,7 @@ import logging
 import textwrap
 import fnmatch
 from io import BytesIO
+import pathspec
 
 try:
     import configparser as ConfigParser
@@ -126,8 +127,7 @@ def is_ignored(path, regex):
 
 def main():
     Git.git_binary = 'git'  # Windows doesn't like env
-
-    repo, options, args = parse_args()
+    
     try:
         repo, options, args = parse_args()
     except BranchNotFound:
@@ -173,6 +173,7 @@ def main():
     gitftpignore = os.path.join(repo.working_dir, options.ftp.gitftpignore)
     if os.path.isfile(gitftpignore):
         with open(gitftpignore, 'r') as ftpignore:
+            spec = pathspec.PathSpec.from_lines('gitignore', ftpignore)
             patterns = parse_ftpignore(ftpignore)
         patterns.append('/' + options.ftp.gitftpignore)
 
@@ -185,7 +186,7 @@ def main():
     if oldtree.hexsha == tree.hexsha:
         logging.info('Nothing to do!')
     else:
-        upload_diff(repo, oldtree, tree, ftp, [base], patterns)
+        upload_diff(repo, oldtree, tree, ftp, [base], patterns, spec)
         ftp.storbinary('STOR git-rev.txt', BytesIO(commit.hexsha.encode('utf-8')))
 
     ftp.quit()
@@ -369,7 +370,7 @@ def get_empty_tree(repo):
     return repo.tree(repo.git.hash_object('-w', '-t', 'tree', os.devnull))
 
 
-def upload_diff(repo, oldtree, tree, ftp, base, ignored):
+def upload_diff(repo, oldtree, tree, ftp, base, ignored, spec):
     """
     Upload  and/or delete items according to a Git diff between two trees.
 
@@ -393,14 +394,15 @@ def upload_diff(repo, oldtree, tree, ftp, base, ignored):
     # -z is used so we don't have to deal with quotes in path matching
     diff = repo.git.diff("--name-status", "--no-renames", "-z", oldtree.hexsha, tree.hexsha)
     diff = iter(diff.split("\0"))
+    matches = spec.match_files(diff)
     for line in diff:
         if not line:
             continue
         status, file = line, next(diff)
         assert status in ['A', 'D', 'M']
 
-        filepath = posixpath.join(*(['/'] + base[1:] + [file]))
-        if is_ignored_path(filepath, ignored):
+        filepath = posixpath.join(*(base[1:] + [file]))
+        if is_ignored_path(filepath, ignored, spec):
             logging.info('Skipped ' + filepath)
             continue
 
@@ -467,15 +469,20 @@ def upload_diff(repo, oldtree, tree, ftp, base, ignored):
                 ftp.cwd(posixpath.join(*base))
 
 
-def is_ignored_path(path, patterns, quiet=False):
+def is_ignored_path(path, patterns, spec, quiet=False):
     """Returns true if a filepath is ignored by gitftpignore."""
     if is_special_file(path):
         return True
+    if match_file(path, spec):
+        return True
     for pat in patterns:
         if is_ignored(path, pat):
+            logging.info("Missed with new matching " + path)
             return True
     return False
 
+def match_file(file_path, spec):
+    return len(list(spec.match_files([file_path]))) > 0  # This should not be so complicated
 
 def is_special_file(name):
     """Returns true if a file is some special Git metadata and not content."""
