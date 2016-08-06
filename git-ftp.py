@@ -145,6 +145,7 @@ def main():
             pass
 
     gitftpignore = os.path.join(repo.working_dir, options.ftp.gitftpignore)
+    spec = None
     if os.path.isfile(gitftpignore):
         with open(gitftpignore, 'r') as ftpignore:
             spec = pathspec.PathSpec.from_lines(pathspec.GitIgnorePattern, ftpignore)
@@ -414,8 +415,9 @@ def is_ignored_path(path, spec, quiet=False):
     """Returns true if a filepath is ignored by gitftpignore."""
     if is_special_file(path):
         return True
-    if match_file(path, spec):
-        return True
+    if spec is not None:
+        if match_file(path, spec):
+            return True
     return False
 
 
