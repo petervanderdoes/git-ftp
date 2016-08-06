@@ -30,17 +30,19 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 """
 
+import fnmatch
 import ftplib
-import re
-import sys
+import getpass
+import logging
+import optparse
 import os.path
 import posixpath  # use this for ftp manipulation
-import getpass
-import optparse
-import logging
+import re
+import sys
 import textwrap
-import fnmatch
 from io import BytesIO
+
+import pathspec
 
 try:
     import configparser as ConfigParser
@@ -78,60 +80,35 @@ class SectionNotFound(Exception):
     pass
 
 
-def split_pattern(path):  # TODO: Improve skeevy code
-    path = fnmatch.translate(path).split('\\/')
-    for i, p in enumerate(path[:-1]):
-        if p:
-            path[i] = p + '\\Z(?ms)'
-    return path
-
-
-# ezyang: This code is pretty skeevy; there is probably a better,
-# more obviously correct way of spelling it. Refactor me...
-def is_ignored(path, regex):
-    regex = split_pattern(os.path.normcase(regex))
-    path = os.path.normcase(path).split('/')
-
-    regex_pos = path_pos = 0
-    if regex[0] == '':  # leading slash - root dir must match
-        if path[0] != '' or not re.match(regex[1], path[1]):
-            return False
-        regex_pos = path_pos = 2
-
-    if not regex_pos:  # find beginning of regex
-        for i, p in enumerate(path):
-            if re.match(regex[0], p):
-                regex_pos = 1
-                path_pos = i + 1
-                break
-        else:
-            return False
-
-    if len(path[path_pos:]) < len(regex[regex_pos:]):
-        return False
-
-    n = len(regex)
-    for r in regex[regex_pos:]:  # match the rest
-        if regex_pos + 1 == n:  # last item; if empty match anything
-            if re.match(r, ''):
-                return True
-
-        if not re.match(r, path[path_pos]):
-            return False
-        path_pos += 1
-        regex_pos += 1
-
-    return True
-
-
 def main():
     Git.git_binary = 'git'  # Windows doesn't like env
 
-    repo, options, args = parse_args()
+    options, args = parse_args()
+
+    configure_logging(options)
+
+    if options.show_version:
+        version_str = "1.3.0-dev.19"
+        print("git-ftp version %s " % (version_str))
+        sys.exit(0)
+
+    if args:
+        cwd = args[0]
+    else:
+        cwd = "."
     try:
-        repo, options, args = parse_args()
-    except BranchNotFound:
+        repo = Repo(cwd)
+    except InvalidGitRepositoryError:
+        logging.error('No git repository found')
         exit()
+
+    if not options.branch:
+        options.branch = repo.active_branch.name
+
+    if not options.section:
+        options.section = options.branch
+
+    get_ftp_creds(repo, options)
 
     if repo.is_dirty() and not options.commit:
         logging.warning("Working copy is dirty; uncommitted changes will NOT be uploaded")
@@ -167,14 +144,10 @@ def main():
         except ftplib.error_perm:
             pass
 
-    # Load ftpignore rules, if any
-    patterns = []
-
     gitftpignore = os.path.join(repo.working_dir, options.ftp.gitftpignore)
     if os.path.isfile(gitftpignore):
         with open(gitftpignore, 'r') as ftpignore:
-            patterns = parse_ftpignore(ftpignore)
-        patterns.append('/' + options.ftp.gitftpignore)
+            spec = pathspec.PathSpec.from_lines(pathspec.GitIgnorePattern, ftpignore)
 
     if not hash:
         # Diffing against an empty tree will cause a full upload.
@@ -185,20 +158,10 @@ def main():
     if oldtree.hexsha == tree.hexsha:
         logging.info('Nothing to do!')
     else:
-        upload_diff(repo, oldtree, tree, ftp, [base], patterns)
+        upload_diff(repo, oldtree, tree, ftp, [base], spec)
         ftp.storbinary('STOR git-rev.txt', BytesIO(commit.hexsha.encode('utf-8')))
 
     ftp.quit()
-
-
-def parse_ftpignore(rawPatterns):
-    patterns = []
-    for pat in rawPatterns:
-        pat = pat.rstrip()
-        if not pat or pat.startswith('#'):
-            continue
-        patterns.append(pat)
-    return patterns
 
 
 def parse_args():
@@ -224,31 +187,11 @@ def parse_args():
     parser.add_option('-s', '--section', dest="section", default=None,
                       help="use this section from ftpdata instead of branch name")
     options, args = parser.parse_args()
-    configure_logging(options)
+
     if len(args) > 1:
         parser.error("too many arguments")
-    if options.show_version:
-        version_str = "1.3.0-dev.1"
-        print("git-ftp version %s " % (version_str))
-        sys.exit(0)
-    if args:
-        cwd = args[0]
-    else:
-        cwd = "."
-    try:
-        repo = Repo(cwd)
-    except InvalidGitRepositoryError:
-        logging.error('No git repository found')
-        exit()
 
-    if not options.branch:
-        options.branch = repo.active_branch.name
-
-    if not options.section:
-        options.section = options.branch
-
-    get_ftp_creds(repo, options)
-    return repo, options, args
+    return options, args
 
 
 def configure_logging(options):
@@ -369,7 +312,7 @@ def get_empty_tree(repo):
     return repo.tree(repo.git.hash_object('-w', '-t', 'tree', os.devnull))
 
 
-def upload_diff(repo, oldtree, tree, ftp, base, ignored):
+def upload_diff(repo, oldtree, tree, ftp, base, spec):
     """
     Upload  and/or delete items according to a Git diff between two trees.
 
@@ -393,14 +336,15 @@ def upload_diff(repo, oldtree, tree, ftp, base, ignored):
     # -z is used so we don't have to deal with quotes in path matching
     diff = repo.git.diff("--name-status", "--no-renames", "-z", oldtree.hexsha, tree.hexsha)
     diff = iter(diff.split("\0"))
+
     for line in diff:
         if not line:
             continue
         status, file = line, next(diff)
         assert status in ['A', 'D', 'M']
 
-        filepath = posixpath.join(*(['/'] + base[1:] + [file]))
-        if is_ignored_path(filepath, ignored):
+        filepath = posixpath.join(*(base[1:] + [file]))
+        if is_ignored_path(filepath, spec):
             logging.info('Skipped ' + filepath)
             continue
 
@@ -462,19 +406,22 @@ def upload_diff(repo, oldtree, tree, ftp, base, ignored):
                 module_base = base + [node.path]
                 logging.info('Entering submodule %s', node.path)
                 ftp.cwd(posixpath.join(*module_base))
-                upload_diff(module, module_oldtree, module_tree, ftp, module_base, ignored)
+                upload_diff(module, module_oldtree, module_tree, ftp, module_base, spec)
                 logging.info('Leaving submodule %s', node.path)
                 ftp.cwd(posixpath.join(*base))
 
 
-def is_ignored_path(path, patterns, quiet=False):
+def is_ignored_path(path, spec, quiet=False):
     """Returns true if a filepath is ignored by gitftpignore."""
     if is_special_file(path):
         return True
-    for pat in patterns:
-        if is_ignored(path, pat):
-            return True
+    if match_file(path, spec):
+        return True
     return False
+
+
+def match_file(file_path, spec):
+    return len(list(spec.match_files([file_path]))) > 0  # This should not be so complicated
 
 
 def is_special_file(name):
