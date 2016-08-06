@@ -88,7 +88,7 @@ def main():
     configure_logging(options)
 
     if options.show_version:
-        version_str = "1.3.0-dev.19"
+        version_str = "1.3.0-dev.27"
         print("git-ftp version %s " % (version_str))
         sys.exit(0)
 
