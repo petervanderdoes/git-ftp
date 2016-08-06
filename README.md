@@ -105,9 +105,7 @@ however you can specify your own for every branch in .git/ftpdata:
     ... credentials ...
     gitftpignore=.my_gitftpignore
 
-Used syntax is same as .gitignore's with the exception of overriding patterns,
-eg. `**!**some/pattern`, which is not supported
-Negations within patterns works as expected.
+Used syntax is same as .gitignore's.
 
 Using a bare repository as a proxy
 ----------------------------------
