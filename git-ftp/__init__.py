@@ -30,7 +30,6 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 """
 
-import fnmatch
 import ftplib
 import getpass
 import logging
@@ -40,9 +39,9 @@ import sys
 import textwrap
 from io import BytesIO
 
+import Common
 import Upload
 import pathspec
-import Common
 
 try:
     import configparser as ConfigParser
@@ -61,7 +60,7 @@ if LooseVersion(git_version) < '0.3.0':
     print('git-ftp requires git-python 0.3.0 or newer; %s provided.' % git_version)
     exit(1)
 
-from git import Blob, Repo, Git, Submodule, InvalidGitRepositoryError
+from git import Repo, Git, InvalidGitRepositoryError
 
 
 class BranchNotFound(Exception):
