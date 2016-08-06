@@ -243,6 +243,21 @@ def get_ftp_creds(repo, options):
         logging.info("Using .git/ftpdata")
         cfg.read(ftpdata)
 
+        git_config = repo.config_reader()
+
+        if not cfg.has_section(options.branch):
+            if options.branch.startswith(git_config.get('gitflow "prefix"', 'feature')):
+                options.section = 'feature/*'
+            elif options.branch.startswith(git_config.get('gitflow "prefix"', 'hotfix')):
+                options.section = 'hotfix/*'
+            elif options.branch.startswith(git_config.get('gitflow "prefix"', 'release')):
+                options.section = 'release/*'
+            elif options.branch.startswith(git_config.get('gitflow "prefix"', 'support')):
+                options.section = 'support/*'
+            else:
+                logging.error("Please configure settings for branch '%s'" % options.branch)
+                raise BranchNotFound()
+
         if (not cfg.has_section(options.section)):
             if cfg.has_section('ftp'):
                 raise FtpDataOldVersion("Please rename the [ftp] section to [branch]. " +
@@ -250,22 +265,6 @@ def get_ftp_creds(repo, options):
             else:
                 raise SectionNotFound("Your .git/ftpdata file does not contain a section " +
                                       "named '%s'" % options.section)
-
-        options_branch = options.branch
-        git_config = repo.config_reader()
-
-        if not cfg.has_section(options.branch):
-            if options.branch.startswith(git_config.get('gitflow "prefix"', 'feature')):
-                options_branch = 'feature/*'
-            elif options.branch.startswith(git_config.get('gitflow "prefix"', 'hotfix')):
-                options_branch = 'hotfix/*'
-            elif options.branch.startswith(git_config.get('gitflow "prefix"', 'release')):
-                options_branch = 'release/*'
-            elif options.branch.startswith(git_config.get('gitflow "prefix"', 'support')):
-                options_branch = 'support/*'
-            else:
-                logging.error("Please configure settings for branch '%s'" % options.branch)
-                raise BranchNotFound()
 
         # just in case you do not want to store your ftp password.
         try:
