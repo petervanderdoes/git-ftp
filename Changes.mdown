@@ -6,6 +6,9 @@
 
 #### 1.3.0-dev.1
 * Modify for Python3 usage
+* Implement full use of wildmatch pattern for .gitftpignore.
+  Previously the pattern you could use for .gitftpignore was not fully compatible
+  with the wildmatch pattern, used by gitignore. For example you could not use negate.
 
 #### 1.2.0
 * Update from upstream
