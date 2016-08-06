@@ -1,1 +1,2 @@
+pathspec==0.4.0
 GitPython==2.0.8
