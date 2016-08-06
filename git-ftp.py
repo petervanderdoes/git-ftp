@@ -36,13 +36,13 @@ import getpass
 import logging
 import optparse
 import os.path
-import posixpath  # use this for ftp manipulation
-import re
 import sys
 import textwrap
 from io import BytesIO
 
+import Upload
 import pathspec
+import Common
 
 try:
     import configparser as ConfigParser
@@ -88,7 +88,7 @@ def main():
     configure_logging(options)
 
     if options.show_version:
-        version_str = "1.3.0-dev.19"
+        version_str = "1.3.0-dev.27"
         print("git-ftp version %s " % (version_str))
         sys.exit(0)
 
@@ -134,6 +134,12 @@ def main():
         ftp = ftplib.FTP(options.ftp.hostname, options.ftp.username, options.ftp.password)
     ftp.cwd(base)
 
+    gitftpignore = os.path.join(repo.working_dir, options.ftp.gitftpignore)
+    spec = None
+    if os.path.isfile(gitftpignore):
+        with open(gitftpignore, 'r') as ftpignore:
+            spec = pathspec.PathSpec.from_lines(pathspec.GitIgnorePattern, ftpignore)
+
     # Check revision
     hash = options.revision
     if not options.force and not hash:
@@ -144,22 +150,17 @@ def main():
         except ftplib.error_perm:
             pass
 
-    gitftpignore = os.path.join(repo.working_dir, options.ftp.gitftpignore)
-    spec = None
-    if os.path.isfile(gitftpignore):
-        with open(gitftpignore, 'r') as ftpignore:
-            spec = pathspec.PathSpec.from_lines(pathspec.GitIgnorePattern, ftpignore)
-
     if not hash:
         # Diffing against an empty tree will cause a full upload.
-        oldtree = get_empty_tree(repo)
+        oldtree = Common.get_empty_tree(repo)
     else:
         oldtree = repo.commit(hash).tree
 
     if oldtree.hexsha == tree.hexsha:
         logging.info('Nothing to do!')
     else:
-        upload_diff(repo, oldtree, tree, ftp, [base], spec)
+        upload = Upload(repo, oldtree, tree, ftp, [base], spec)
+        upload.diff()
         ftp.storbinary('STOR git-rev.txt', BytesIO(commit.hexsha.encode('utf-8')))
 
     ftp.quit()
@@ -203,10 +204,6 @@ def configure_logging(options):
     formatter = logging.Formatter("%(levelname)s: %(message)s")
     ch.setFormatter(formatter)
     logger.addHandler(ch)
-
-
-def format_mode(mode):
-    return "%o" % (mode & 0o777)
 
 
 class FtpData():
@@ -306,149 +303,6 @@ def get_ftp_creds(repo, options):
             cfg.set(options.section, 'ssl', options.ftp.ssl)
             f = open(ftpdata, 'w')
             cfg.write(f)
-
-
-def get_empty_tree(repo):
-    return repo.tree(repo.git.hash_object('-w', '-t', 'tree', os.devnull))
-
-
-def upload_diff(repo, oldtree, tree, ftp, base, spec):
-    """
-    Upload  and/or delete items according to a Git diff between two trees.
-
-    upload_diff requires, that the ftp working directory is set to the base
-    of the current repository before it is called.
-
-    Keyword arguments:
-    repo    -- The git.Repo to upload objects from
-    oldtree -- The old tree to diff against. An empty tree will cause a full
-               upload of the new tree.
-    tree    -- The new tree. An empty tree will cause a full removal of all
-               objects of the old tree.
-    ftp     -- The active ftplib.FTP object to upload contents to
-    base    -- The list of base directory and submodule paths to upload contents
-               to in ftp.
-               For example, base = ['www', 'www']. base must exist and must not
-               have a trailing slash.
-    ignored -- The list of patterns explicitly ignored by gitftpignore.
-
-    """
-    # -z is used so we don't have to deal with quotes in path matching
-    diff = repo.git.diff("--name-status", "--no-renames", "-z", oldtree.hexsha, tree.hexsha)
-    diff = iter(diff.split("\0"))
-
-    for line in diff:
-        if not line:
-            continue
-        status, file = line, next(diff)
-        assert status in ['A', 'D', 'M']
-
-        filepath = posixpath.join(*(base[1:] + [file]))
-        if is_ignored_path(filepath, spec):
-            logging.info('Skipped ' + filepath)
-            continue
-
-        if status == "D":
-            try:
-                ftp.delete(file)
-                logging.info('Deleted ' + file)
-            except ftplib.error_perm:
-                logging.warning('Failed to delete ' + file)
-
-            # Now let's see if we need to remove some subdirectories
-            def generate_parent_dirs(x):
-                # invariant: x is a filename
-                while '/' in x:
-                    x = posixpath.dirname(x)
-                    yield x
-
-            for dir in generate_parent_dirs(file):
-                try:
-                    # unfortunately, dir in tree doesn't work for subdirs
-                    tree[dir]
-                except KeyError:
-                    try:
-                        ftp.rmd(dir)
-                        logging.debug('Cleaned away ' + dir)
-                    except ftplib.error_perm:
-                        logging.info('Did not clean away ' + dir)
-                        break
-        else:
-            node = tree[file]
-
-            if status == "A":
-                # try building up the parent directory
-                subtree = tree
-                if isinstance(node, Blob):
-                    directories = file.split("/")[:-1]
-                else:
-                    # for submodules also add the directory itself
-                    assert isinstance(node, Submodule)
-                    directories = file.split("/")
-                for c in directories:
-                    subtree = subtree / c
-                    try:
-                        ftp.mkd(subtree.path)
-                    except ftplib.error_perm:
-                        pass
-
-            if isinstance(node, Blob):
-                upload_blob(node, ftp)
-            else:
-                module = node.module()
-                module_tree = module.commit(node.hexsha).tree
-                if status == "A":
-                    module_oldtree = get_empty_tree(module)
-                else:
-                    oldnode = oldtree[file]
-                    assert isinstance(oldnode, Submodule)  # TODO: What if not?
-                    module_oldtree = module.commit(oldnode.hexsha).tree
-                module_base = base + [node.path]
-                logging.info('Entering submodule %s', node.path)
-                ftp.cwd(posixpath.join(*module_base))
-                upload_diff(module, module_oldtree, module_tree, ftp, module_base, spec)
-                logging.info('Leaving submodule %s', node.path)
-                ftp.cwd(posixpath.join(*base))
-
-
-def is_ignored_path(path, spec, quiet=False):
-    """Returns true if a filepath is ignored by gitftpignore."""
-    if is_special_file(path):
-        return True
-    if spec is not None:
-        if match_file(path, spec):
-            return True
-    return False
-
-
-def match_file(file_path, spec):
-    return len(list(spec.match_files([file_path]))) > 0  # This should not be so complicated
-
-
-def is_special_file(name):
-    """Returns true if a file is some special Git metadata and not content."""
-    return posixpath.basename(name) in ['.gitignore', '.gitattributes', '.gitmodules', '.gitftpignore']
-
-
-def upload_blob(blob, ftp, quiet=False):
-    """
-    Uploads a blob.  Pre-condition on ftp is that our current working
-    directory is the root directory of the repository being uploaded
-    (that means DON'T use ftp.cwd; we'll use full paths appropriately).
-    """
-    if not quiet:
-        logging.info('Uploading ' + blob.path)
-    try:
-        ftp.delete(blob.path)
-    except ftplib.error_perm:
-        pass
-    ftp.storbinary('STOR ' + blob.path, blob.data_stream)
-    try:
-        ftp.voidcmd('SITE CHMOD ' + format_mode(blob.mode) + ' ' + blob.path)
-    except ftplib.error_perm:
-        # Ignore Windows chmod errors
-        logging.warning('Failed to chmod ' + blob.path)
-        pass
 
 
 def boolish(s):
