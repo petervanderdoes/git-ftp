@@ -30,17 +30,18 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 """
 
+import fnmatch
 import ftplib
-import re
-import sys
+import getpass
+import logging
+import optparse
 import os.path
 import posixpath  # use this for ftp manipulation
-import getpass
-import optparse
-import logging
+import re
+import sys
 import textwrap
-import fnmatch
 from io import BytesIO
+
 import pathspec
 
 try:
@@ -127,11 +128,33 @@ def is_ignored(path, regex):
 
 def main():
     Git.git_binary = 'git'  # Windows doesn't like env
-    
+
+    options, args = parse_args()
+
+    configure_logging(options)
+
+    if options.show_version:
+        version_str = "1.3.0-dev.1"
+        print("git-ftp version %s " % (version_str))
+        sys.exit(0)
+
+    if args:
+        cwd = args[0]
+    else:
+        cwd = "."
     try:
-        repo, options, args = parse_args()
-    except BranchNotFound:
+        repo = Repo(cwd)
+    except InvalidGitRepositoryError:
+        logging.error('No git repository found')
         exit()
+
+    if not options.branch:
+        options.branch = repo.active_branch.name
+
+    if not options.section:
+        options.section = options.branch
+
+    get_ftp_creds(repo, options)
 
     if repo.is_dirty() and not options.commit:
         logging.warning("Working copy is dirty; uncommitted changes will NOT be uploaded")
@@ -225,31 +248,11 @@ def parse_args():
     parser.add_option('-s', '--section', dest="section", default=None,
                       help="use this section from ftpdata instead of branch name")
     options, args = parser.parse_args()
-    configure_logging(options)
+
     if len(args) > 1:
         parser.error("too many arguments")
-    if options.show_version:
-        version_str = "1.3.0-dev.1"
-        print("git-ftp version %s " % (version_str))
-        sys.exit(0)
-    if args:
-        cwd = args[0]
-    else:
-        cwd = "."
-    try:
-        repo = Repo(cwd)
-    except InvalidGitRepositoryError:
-        logging.error('No git repository found')
-        exit()
 
-    if not options.branch:
-        options.branch = repo.active_branch.name
-
-    if not options.section:
-        options.section = options.branch
-
-    get_ftp_creds(repo, options)
-    return repo, options, args
+    return options, args
 
 
 def configure_logging(options):
@@ -481,8 +484,10 @@ def is_ignored_path(path, patterns, spec, quiet=False):
             return True
     return False
 
+
 def match_file(file_path, spec):
     return len(list(spec.match_files([file_path]))) > 0  # This should not be so complicated
+
 
 def is_special_file(name):
     """Returns true if a file is some special Git metadata and not content."""
