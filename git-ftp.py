@@ -427,7 +427,7 @@ def match_file(file_path, spec):
 
 def is_special_file(name):
     """Returns true if a file is some special Git metadata and not content."""
-    return posixpath.basename(name) in ['.gitignore', '.gitattributes', '.gitmodules']
+    return posixpath.basename(name) in ['.gitignore', '.gitattributes', '.gitmodules', '.gitftpignore']
 
 
 def upload_blob(blob, ftp, quiet=False):
