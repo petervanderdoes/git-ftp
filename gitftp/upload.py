@@ -4,7 +4,7 @@ import posixpath
 
 from git import Blob, Submodule
 
-import gitftp.Common as Common
+import gitftp.common as Common
 
 
 class Upload:
