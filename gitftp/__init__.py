@@ -76,11 +76,8 @@ def main():
         logging.error('No git repository found')
         exit()
 
-    if not options.branch:
-        options.branch = repo.active_branch.name
-
-    if not options.section:
-        options.section = options.branch
+    options.branch = get_option(options.branch, repo.active_branch.name)
+    options.section = get_option(options.section, options.branch)
 
     get_ftp_creds(repo, options)
 
@@ -93,19 +90,12 @@ def main():
         branch = next(h for h in repo.heads if h.name == options.branch)
     except StopIteration:
         raise BranchNotFound
-    commit = branch.commit
-    if options.commit:
-        commit = repo.commit(options.commit)
+
+    options.commit = get_option(options.commit, branch)
+    commit = repo.commit(options.commit)
+
     tree = commit.tree
-    if options.ftp.ssl:
-        if hasattr(ftplib, 'FTP_TLS'):  # SSL new in 2.7+
-            ftp = ftplib.FTP_TLS(options.ftp.hostname, options.ftp.username, options.ftp.password)
-            ftp.prot_p()
-            logging.info("Using SSL")
-        else:
-            raise FtpSslNotSupported("Python is too old for FTP SSL. Try using Python 2.7 or later.")
-    else:
-        ftp = ftplib.FTP(options.ftp.hostname, options.ftp.username, options.ftp.password)
+    ftp = get_ftp_class(options)
     ftp.cwd(base)
 
     gitftpignore = os.path.join(repo.working_dir, options.ftp.gitftpignore)
@@ -115,20 +105,7 @@ def main():
             spec = pathspec.PathSpec.from_lines(pathspec.GitIgnorePattern, ftpignore)
 
     # Check revision
-    hash = options.revision
-    if not options.force and not hash:
-        hashFile = BytesIO()
-        try:
-            ftp.retrbinary('RETR git-rev.txt', hashFile.write)
-            hash = hashFile.getvalue().decode('utf-8').strip()
-        except ftplib.error_perm:
-            pass
-
-    if not hash:
-        # Diffing against an empty tree will cause a full upload.
-        oldtree = gitftp.common.get_empty_tree(repo)
-    else:
-        oldtree = repo.commit(hash).tree
+    oldtree = get_old_tree(ftp, options, repo)
 
     if oldtree.hexsha == tree.hexsha:
         logging.info('Nothing to do!')
@@ -138,6 +115,41 @@ def main():
         ftp.storbinary('STOR git-rev.txt', BytesIO(commit.hexsha.encode('utf-8')))
 
     ftp.quit()
+
+def get_option(option, default):
+    if not option:
+        return default
+    return option
+
+def get_ftp_class(options):
+    if options.ftp.ssl:
+        if hasattr(ftplib, 'FTP_TLS'):  # SSL new in 2.7+
+            ftp = ftplib.FTP_TLS(options.ftp.hostname, options.ftp.username, options.ftp.password)
+            ftp.prot_p()
+            logging.info("Using SSL")
+        else:
+            raise FtpSslNotSupported("Python is too old for FTP SSL. Try using Python 2.7 or later.")
+    else:
+        ftp = ftplib.FTP(options.ftp.hostname, options.ftp.username, options.ftp.password)
+    return ftp
+
+
+def get_old_tree(ftp, options, repo):
+    """Get the tree to which we are comparing the new tree too"""
+    hash = options.revision
+    if not options.force and not hash:
+        hashFile = BytesIO()
+        try:
+            ftp.retrbinary('RETR git-rev.txt', hashFile.write)
+            hash = hashFile.getvalue().decode('utf-8').strip()
+        except ftplib.error_perm:
+            pass
+    if not hash:
+        # Diffing against an empty tree will cause a full upload.
+        oldtree = gitftp.common.get_empty_tree(repo)
+    else:
+        oldtree = repo.commit(hash).tree
+    return oldtree
 
 
 def parse_args():
