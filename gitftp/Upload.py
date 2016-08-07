@@ -31,45 +31,17 @@ class Upload:
                 continue
 
             if status == "D":
-                try:
-                    self.ftp.delete(file)
-                    logging.info('Deleted ' + file)
-                except ftplib.error_perm:
-                    logging.warning('Failed to delete ' + file)
-
-                # Now let's see if we need to remove some subdirectories
-                for dir in self.generate_parent_dirs(file):
-                    try:
-                        # unfortunately, dir in tree doesn't work for subdirs
-                        self.tree[dir]
-                    except KeyError:
-                        try:
-                            self.ftp.rmd(dir)
-                            logging.debug('Cleaned away ' + dir)
-                        except ftplib.error_perm:
-                            logging.info('Did not clean away ' + dir)
-                            break
+                self.remove_file(file)
             else:
                 node = self.tree[file]
 
                 if status == "A":
                     # try building up the parent directory
-                    subtree = self.tree
-                    if isinstance(node, Blob):
-                        directories = file.split("/")[:-1]
-                    else:
-                        # for submodules also add the directory itself
-                        assert isinstance(node, Submodule)
-                        directories = file.split("/")
-                    for c in directories:
-                        subtree = subtree / c
-                        try:
-                            self.ftp.mkd(subtree.path)
-                        except ftplib.error_perm:
-                            pass
+                    self.build_directory(file, node)
 
+                # The node is a file so upload it.
                 if isinstance(node, Blob):
-                    self.blob(node)
+                    self.upload(node)
                 else:
                     module = node.module()
                     module_tree = module.commit(node.hexsha).tree
@@ -86,6 +58,48 @@ class Upload:
                     upload.diff()
                     logging.info('Leaving submodule %s', node.path)
                     self.ftp.cwd(posixpath.join(*self.base))
+
+    def build_directory(self, file, node):
+        subtree = self.tree
+
+        if isinstance(node, Blob):
+            directories = file.split("/")[:-1]
+        else:
+            # for submodules also add the directory itself
+            assert isinstance(node, Submodule)
+            directories = file.split("/")
+
+        for c in directories:
+            subtree = subtree / c
+            try:
+                self.ftp.mkd(subtree.path)
+            except ftplib.error_perm:
+                pass
+
+    def remove_file(self, file):
+        """Remove the file from the server"""
+        try:
+            self.ftp.delete(file)
+            logging.info('Deleted ' + file)
+        except ftplib.error_perm:
+            logging.warning('Failed to delete ' + file)
+
+        # Now let's see if we need to remove some subdirectories
+        self.remove_subdirectories(file)
+
+    def remove_subdirectories(self, file):
+        """Remove potential sub directories"""
+        for dir in self.generate_parent_dirs(file):
+            try:
+                # unfortunately, dir in tree doesn't work for subdirs
+                self.tree[dir]
+            except KeyError:
+                try:
+                    self.ftp.rmd(dir)
+                    logging.debug('Cleaned away ' + dir)
+                except ftplib.error_perm:
+                    logging.info('Did not clean away ' + dir)
+                    break
 
     def generate_parent_dirs(self, x):
         # invariant: x is a filename
@@ -109,7 +123,7 @@ class Upload:
         """Returns true if a file is some special Git metadata and not content."""
         return posixpath.basename(name) in ['.gitignore', '.gitattributes', '.gitmodules', '.gitftpignore']
 
-    def blob(self, blob, quiet=False):
+    def upload(self, blob, quiet=False):
         """
         Uploads a blob.  Pre-condition on ftp is that our current working
         directory is the root directory of the repository being uploaded
