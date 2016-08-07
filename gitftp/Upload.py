@@ -2,8 +2,9 @@ import ftplib
 import logging
 import posixpath
 
-import Common
 from git import Blob, Submodule
+
+import gitftp.Common as Common
 
 
 class Upload:
