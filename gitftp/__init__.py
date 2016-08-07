@@ -13,9 +13,10 @@ import sys
 import textwrap
 from io import BytesIO
 
-import gitftp.Common
-import gitftp.Upload
 import pathspec
+
+import gitftp.common
+import gitftp.upload
 
 try:
     import configparser as ConfigParser
@@ -125,14 +126,14 @@ def main():
 
     if not hash:
         # Diffing against an empty tree will cause a full upload.
-        oldtree = Common.get_empty_tree(repo)
+        oldtree = gitftp.common.get_empty_tree(repo)
     else:
         oldtree = repo.commit(hash).tree
 
     if oldtree.hexsha == tree.hexsha:
         logging.info('Nothing to do!')
     else:
-        upload = Upload(repo, oldtree, tree, ftp, [base], spec)
+        upload = gitftp.upload.Upload(repo, oldtree, tree, ftp, [base], spec)
         upload.diff()
         ftp.storbinary('STOR git-rev.txt', BytesIO(commit.hexsha.encode('utf-8')))
 
@@ -239,7 +240,16 @@ def get_ftp_creds_from_file(cfg, ftpdata, options, repo):
     logging.info("Using .git/ftpdata")
     cfg.read(ftpdata)
     git_config = repo.config_reader()
-    get_ftpdata_section(cfg, git_config, options)
+    if not cfg.has_section(options.section):
+        handle_gitflow_wildcard_branches(git_config, options)
+
+    if (not cfg.has_section(options.section)):
+        if cfg.has_section('ftp'):
+            raise FtpDataOldVersion("Please rename the [ftp] section to [branch]. " +
+                                    "Take a look at the README for more information")
+        else:
+            raise SectionNotFound("Your .git/ftpdata file does not contain a section " +
+                                  "named '%s'" % options.section)
 
     # just in case you do not want to store your ftp password.
     try:
@@ -260,26 +270,19 @@ def get_ftp_creds_from_file(cfg, ftpdata, options, repo):
         options.ftp.gitftpignore = '.gitftpignore'
 
 
-def get_ftpdata_section(cfg, git_config, options):
-    if not cfg.has_section(options.branch):
-        if options.branch.startswith(git_config.get('gitflow "prefix"', 'feature')):
-            options.section = 'feature/*'
-        elif options.branch.startswith(git_config.get('gitflow "prefix"', 'hotfix')):
-            options.section = 'hotfix/*'
-        elif options.branch.startswith(git_config.get('gitflow "prefix"', 'release')):
-            options.section = 'release/*'
-        elif options.branch.startswith(git_config.get('gitflow "prefix"', 'support')):
-            options.section = 'support/*'
-        else:
-            logging.error("Please configure settings for branch '%s'" % options.branch)
-            raise BranchNotFound()
-    if (not cfg.has_section(options.section)):
-        if cfg.has_section('ftp'):
-            raise FtpDataOldVersion("Please rename the [ftp] section to [branch]. " +
-                                    "Take a look at the README for more information")
-        else:
-            raise SectionNotFound("Your .git/ftpdata file does not contain a section " +
-                                  "named '%s'" % options.section)
+def handle_gitflow_wildcard_branches(git_config, options):
+    if git_config.has_section('gitflow "prefix"'):
+        gitflow_branches = ['feature',
+                            'hotfix',
+                            'release',
+                            'support',
+                            'bugfix']
+
+        for gitflow_branch in gitflow_branches:
+            if (git_config.has_option('gitflow "prefix"', gitflow_branch) and
+                    options.branch.startswith(git_config.get('gitflow "prefix"', gitflow_branch))):
+                options.section = git_config.get('gitflow "prefix"', gitflow_branch) + '/*'
+                break
 
 
 def boolish(s):
