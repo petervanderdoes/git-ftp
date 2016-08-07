@@ -25,27 +25,29 @@ class Upload:
                 continue
             status, file = line, next(diff)
             assert status in ['A', 'D', 'M']
+            self.handle_line(status, file)
 
-            filepath = posixpath.join(*(self.base[1:] + [file]))
-            if self.is_ignored_path(filepath):
-                logging.info('Skipped ' + filepath)
-                continue
+    def handle_line(self, status, file):
+        filepath = posixpath.join(*(self.base[1:] + [file]))
+        if self.is_ignored_path(filepath):
+            logging.info('Skipped ' + filepath)
+            return
 
-            if status == "D":
-                self.remove_file(file)
-                continue
+        if status == "D":
+            self.remove_file(file)
+            return
 
-            node = self.tree[file]
-            if status == "A":
-                # try building up the parent directory
-                self.build_directory(file, node)
+        node = self.tree[file]
+        if status == "A":
+            # try building up the parent directory
+            self.build_directory(file, node)
 
-            # The node is a file so upload it.
-            if isinstance(node, Blob):
-                self.upload(node)
-                continue
+        # The node is a file so upload it.
+        if isinstance(node, Blob):
+            self.upload(node)
+            return
 
-            self.handle_submodule(file, node, status)
+        self.handle_submodule(file, node, status)
 
     def handle_submodule(self, file, node, status):
         module = node.module()
