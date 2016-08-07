@@ -1,12 +1,12 @@
 from setuptools import setup
 
-setup(name='git-ftp',
+setup(name='gitftp',
       version="1.3.0-dev.30",
       author='Peter van der Does',
       author_email='peter@avirtualhome.com',
       license='MIT',
       description='Quick and efficient publishing of Git repositories over FTP',
-      packages=['git-ftp'],
+      packages=['gitftp'],
       include_package_data=True,
       package_data={'': ['README.rst']
                     },

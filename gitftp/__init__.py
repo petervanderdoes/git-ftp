@@ -13,8 +13,8 @@ import sys
 import textwrap
 from io import BytesIO
 
-import Common
-import Upload
+import gitftp.Common
+import gitftp.Upload
 import pathspec
 
 try:
