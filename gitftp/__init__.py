@@ -70,14 +70,10 @@ def main():
         cwd = args[0]
     else:
         cwd = "."
-    try:
-        repo = Repo(cwd)
-    except InvalidGitRepositoryError:
-        logging.error('No git repository found')
-        exit()
+    repo = get_repo(cwd)
 
-    options.branch = get_option(options.branch, repo.active_branch.name)
-    options.section = get_option(options.section, options.branch)
+    options.branch = get_value(options.branch, repo.active_branch.name)
+    options.section = get_value(options.section, options.branch)
 
     get_ftp_creds(repo, options)
 
@@ -85,13 +81,9 @@ def main():
         logging.warning("Working copy is dirty; uncommitted changes will NOT be uploaded")
 
     base = options.ftp.remotepath
-    logging.info("Base directory is %s", base)
-    try:
-        branch = next(h for h in repo.heads if h.name == options.branch)
-    except StopIteration:
-        raise BranchNotFound
+    branch = get_branch(base, options, repo)
 
-    options.commit = get_option(options.commit, branch)
+    options.commit = get_value(options.commit, branch)
     commit = repo.commit(options.commit)
 
     tree = commit.tree
@@ -116,7 +108,26 @@ def main():
 
     ftp.quit()
 
-def get_option(option, default):
+
+def get_branch(base, options, repo):
+    logging.info("Base directory is %s", base)
+    try:
+        branch = next(h for h in repo.heads if h.name == options.branch)
+    except StopIteration:
+        raise BranchNotFound
+    return branch
+
+
+def get_repo(cwd):
+    try:
+        repo = Repo(cwd)
+    except InvalidGitRepositoryError:
+        logging.error('No git repository found')
+        exit()
+    return repo
+
+
+def get_value(option, default):
     if not option:
         return default
     return option
