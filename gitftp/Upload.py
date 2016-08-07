@@ -32,113 +32,127 @@ class Upload:
 
             if status == "D":
                 self.remove_file(file)
-            else:
-                node = self.tree[file]
+                continue
 
-                if status == "A":
-                    # try building up the parent directory
-                    self.build_directory(file, node)
+            node = self.tree[file]
+            if status == "A":
+                # try building up the parent directory
+                self.build_directory(file, node)
 
-                # The node is a file so upload it.
-                if isinstance(node, Blob):
-                    self.upload(node)
-                else:
-                    module = node.module()
-                    module_tree = module.commit(node.hexsha).tree
-                    if status == "A":
-                        module_oldtree = Common.get_empty_tree(module)
-                    else:
-                        oldnode = self.oldtree[file]
-                        assert isinstance(oldnode, Submodule)  # TODO: What if not?
-                        module_oldtree = module.commit(oldnode.hexsha).tree
-                    module_base = self.base + [node.path]
-                    logging.info('Entering submodule %s', node.path)
-                    self.ftp.cwd(posixpath.join(*module_base))
-                    upload = Upload(module, module_oldtree, module_tree, self.ftp, module_base, self.ignore)
-                    upload.diff()
-                    logging.info('Leaving submodule %s', node.path)
-                    self.ftp.cwd(posixpath.join(*self.base))
+            # The node is a file so upload it.
+            if isinstance(node, Blob):
+                self.upload(node)
+                continue
 
-    def build_directory(self, file, node):
-        subtree = self.tree
+            self.handle_submodule(file, node, status)
 
-        if isinstance(node, Blob):
-            directories = file.split("/")[:-1]
+    def handle_submodule(self, file, node, status):
+        module = node.module()
+        module_tree = module.commit(node.hexsha).tree
+
+        if status == "A":
+            module_oldtree = Common.get_empty_tree(module)
         else:
-            # for submodules also add the directory itself
-            assert isinstance(node, Submodule)
-            directories = file.split("/")
+            oldnode = self.oldtree[file]
+            assert isinstance(oldnode, Submodule)  # TODO: What if not?
+            module_oldtree = module.commit(oldnode.hexsha).tree
+            
+        module_base = self.base + [node.path]
+        logging.info('Entering submodule %s', node.path)
+        self.ftp.cwd(posixpath.join(*module_base))
+        upload = Upload(module, module_oldtree, module_tree, self.ftp, module_base, self.ignore)
+        upload.diff()
+        logging.info('Leaving submodule %s', node.path)
+        self.ftp.cwd(posixpath.join(*self.base))
 
-        for c in directories:
-            subtree = subtree / c
+
+def build_directory(self, file, node):
+    subtree = self.tree
+
+    if isinstance(node, Blob):
+        directories = file.split("/")[:-1]
+    else:
+        # for submodules also add the directory itself
+        assert isinstance(node, Submodule)
+        directories = file.split("/")
+
+    for c in directories:
+        subtree = subtree / c
+        try:
+            self.ftp.mkd(subtree.path)
+        except ftplib.error_perm:
+            pass
+
+
+def remove_file(self, file):
+    """Remove the file from the server"""
+    try:
+        self.ftp.delete(file)
+        logging.info('Deleted ' + file)
+    except ftplib.error_perm:
+        logging.warning('Failed to delete ' + file)
+
+    # Now let's see if we need to remove some subdirectories
+    self.remove_subdirectories(file)
+
+
+def remove_subdirectories(self, file):
+    """Remove potential sub directories"""
+    for dir in self.generate_parent_dirs(file):
+        try:
+            # unfortunately, dir in tree doesn't work for subdirs
+            self.tree[dir]
+        except KeyError:
             try:
-                self.ftp.mkd(subtree.path)
+                self.ftp.rmd(dir)
+                logging.debug('Cleaned away ' + dir)
             except ftplib.error_perm:
-                pass
+                logging.info('Did not clean away ' + dir)
+                break
 
-    def remove_file(self, file):
-        """Remove the file from the server"""
-        try:
-            self.ftp.delete(file)
-            logging.info('Deleted ' + file)
-        except ftplib.error_perm:
-            logging.warning('Failed to delete ' + file)
 
-        # Now let's see if we need to remove some subdirectories
-        self.remove_subdirectories(file)
+def generate_parent_dirs(self, x):
+    # invariant: x is a filename
+    while '/' in x:
+        x = posixpath.dirname(x)
+        yield x
 
-    def remove_subdirectories(self, file):
-        """Remove potential sub directories"""
-        for dir in self.generate_parent_dirs(file):
-            try:
-                # unfortunately, dir in tree doesn't work for subdirs
-                self.tree[dir]
-            except KeyError:
-                try:
-                    self.ftp.rmd(dir)
-                    logging.debug('Cleaned away ' + dir)
-                except ftplib.error_perm:
-                    logging.info('Did not clean away ' + dir)
-                    break
 
-    def generate_parent_dirs(self, x):
-        # invariant: x is a filename
-        while '/' in x:
-            x = posixpath.dirname(x)
-            yield x
-
-    def is_ignored_path(self, path, quiet=False):
-        """Returns true if a filepath is ignored by gitftpignore."""
-        if self.is_special_file(path):
+def is_ignored_path(self, path, quiet=False):
+    """Returns true if a filepath is ignored by gitftpignore."""
+    if self.is_special_file(path):
+        return True
+    if self.ignore is not None:
+        if self.match_file(path):
             return True
-        if self.ignore is not None:
-            if self.match_file(path):
-                return True
-        return False
+    return False
 
-    def match_file(self, file_path):
-        return len(list(self.ignore.match_files([file_path]))) > 0  # This should not be so complicated
 
-    def is_special_file(self, name):
-        """Returns true if a file is some special Git metadata and not content."""
-        return posixpath.basename(name) in ['.gitignore', '.gitattributes', '.gitmodules', '.gitftpignore']
+def match_file(self, file_path):
+    return len(list(self.ignore.match_files([file_path]))) > 0  # This should not be so complicated
 
-    def upload(self, blob, quiet=False):
-        """
-        Uploads a blob.  Pre-condition on ftp is that our current working
-        directory is the root directory of the repository being uploaded
-        (that means DON'T use ftp.cwd; we'll use full paths appropriately).
-        """
-        if not quiet:
-            logging.info('Uploading ' + blob.path)
-        try:
-            self.ftp.delete(blob.path)
-        except ftplib.error_perm:
-            pass
-        self.ftp.storbinary('STOR ' + blob.path, blob.data_stream)
-        try:
-            self.ftp.voidcmd('SITE CHMOD ' + Common.format_mode(blob.mode) + ' ' + blob.path)
-        except ftplib.error_perm:
-            # Ignore Windows chmod errors
-            logging.warning('Failed to chmod ' + blob.path)
-            pass
+
+def is_special_file(self, name):
+    """Returns true if a file is some special Git metadata and not content."""
+    return posixpath.basename(name) in ['.gitignore', '.gitattributes', '.gitmodules', '.gitftpignore']
+
+
+def upload(self, blob, quiet=False):
+    """
+    Uploads a blob.  Pre-condition on ftp is that our current working
+    directory is the root directory of the repository being uploaded
+    (that means DON'T use ftp.cwd; we'll use full paths appropriately).
+    """
+    if not quiet:
+        logging.info('Uploading ' + blob.path)
+    try:
+        self.ftp.delete(blob.path)
+    except ftplib.error_perm:
+        pass
+    self.ftp.storbinary('STOR ' + blob.path, blob.data_stream)
+    try:
+        self.ftp.voidcmd('SITE CHMOD ' + Common.format_mode(blob.mode) + ' ' + blob.path)
+    except ftplib.error_perm:
+        # Ignore Windows chmod errors
+        logging.warning('Failed to chmod ' + blob.path)
+        pass
