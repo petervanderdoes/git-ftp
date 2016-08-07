@@ -60,17 +60,17 @@ You can place FTP credentials in `.git/ftpdata`, as such:
 Each section corresponds to a git branch. FTP SSL support needs Python
 2.7 or later.
 
-For git-flow there are four special wildcard sections. Each of the wildcard 
-section corresponds with a branch as used by git-flow. If a section is found 
+For git-flow there are five special wildcard sections. Each of the wildcard
+section corresponds with the prefix used for the branch as used by git-flow. If a section is found
 with the full name that section will be used.
 
-The sections are named:
-- feature/*
-- release/*
-- hotfix/*
-- support/*
+**Example 1:**
 
-**Example:**
+If your prefix for a release branch is `lanzamiento` the section would be named `lanzamiento/*`
+
+**Example 2:**
+
+The prefix for a feature branch is set to `feature`.
 
 The following is setup in `.git/ftpdata`
  
