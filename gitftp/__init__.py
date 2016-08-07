@@ -211,50 +211,7 @@ def get_ftp_creds(repo, options):
     options.ftp = FtpData()
     cfg = ConfigParser.ConfigParser()
     if os.path.isfile(ftpdata):
-        logging.info("Using .git/ftpdata")
-        cfg.read(ftpdata)
-
-        git_config = repo.config_reader()
-
-        if not cfg.has_section(options.branch):
-            if options.branch.startswith(git_config.get('gitflow "prefix"', 'feature')):
-                options.section = 'feature/*'
-            elif options.branch.startswith(git_config.get('gitflow "prefix"', 'hotfix')):
-                options.section = 'hotfix/*'
-            elif options.branch.startswith(git_config.get('gitflow "prefix"', 'release')):
-                options.section = 'release/*'
-            elif options.branch.startswith(git_config.get('gitflow "prefix"', 'support')):
-                options.section = 'support/*'
-            else:
-                logging.error("Please configure settings for branch '%s'" % options.branch)
-                raise BranchNotFound()
-
-        if (not cfg.has_section(options.section)):
-            if cfg.has_section('ftp'):
-                raise FtpDataOldVersion("Please rename the [ftp] section to [branch]. " +
-                                        "Take a look at the README for more information")
-            else:
-                raise SectionNotFound("Your .git/ftpdata file does not contain a section " +
-                                      "named '%s'" % options.section)
-
-        # just in case you do not want to store your ftp password.
-        try:
-            options.ftp.password = cfg.get(options.section, 'password')
-        except ConfigParser.NoOptionError:
-            options.ftp.password = getpass.getpass('FTP Password: ')
-
-        options.ftp.username = cfg.get(options.section, 'username')
-        options.ftp.hostname = cfg.get(options.section, 'hostname')
-        options.ftp.remotepath = cfg.get(options.section, 'remotepath')
-        try:
-            options.ftp.ssl = boolish(cfg.get(options.section, 'ssl'))
-        except ConfigParser.NoOptionError:
-            options.ftp.ssl = False
-
-        try:
-            options.ftp.gitftpignore = cfg.get(options.section, 'gitftpignore')
-        except ConfigParser.NoOptionError:
-            options.ftp.gitftpignore = '.gitftpignore'
+        get_ftp_creds_from_file(cfg, ftpdata, options, repo)
     else:
         print("Please configure settings for branch '%s'" % options.section)
         options.ftp.username = input('FTP Username: ')
@@ -276,6 +233,53 @@ def get_ftp_creds(repo, options):
             cfg.set(options.section, 'ssl', options.ftp.ssl)
             f = open(ftpdata, 'w')
             cfg.write(f)
+
+
+def get_ftp_creds_from_file(cfg, ftpdata, options, repo):
+    logging.info("Using .git/ftpdata")
+    cfg.read(ftpdata)
+    git_config = repo.config_reader()
+    get_ftpdata_section(cfg, git_config, options)
+
+    # just in case you do not want to store your ftp password.
+    try:
+        options.ftp.password = cfg.get(options.section, 'password')
+    except ConfigParser.NoOptionError:
+        options.ftp.password = getpass.getpass('FTP Password: ')
+
+    options.ftp.username = cfg.get(options.section, 'username')
+    options.ftp.hostname = cfg.get(options.section, 'hostname')
+    options.ftp.remotepath = cfg.get(options.section, 'remotepath')
+    try:
+        options.ftp.ssl = boolish(cfg.get(options.section, 'ssl'))
+    except ConfigParser.NoOptionError:
+        options.ftp.ssl = False
+    try:
+        options.ftp.gitftpignore = cfg.get(options.section, 'gitftpignore')
+    except ConfigParser.NoOptionError:
+        options.ftp.gitftpignore = '.gitftpignore'
+
+
+def get_ftpdata_section(cfg, git_config, options):
+    if not cfg.has_section(options.branch):
+        if options.branch.startswith(git_config.get('gitflow "prefix"', 'feature')):
+            options.section = 'feature/*'
+        elif options.branch.startswith(git_config.get('gitflow "prefix"', 'hotfix')):
+            options.section = 'hotfix/*'
+        elif options.branch.startswith(git_config.get('gitflow "prefix"', 'release')):
+            options.section = 'release/*'
+        elif options.branch.startswith(git_config.get('gitflow "prefix"', 'support')):
+            options.section = 'support/*'
+        else:
+            logging.error("Please configure settings for branch '%s'" % options.branch)
+            raise BranchNotFound()
+    if (not cfg.has_section(options.section)):
+        if cfg.has_section('ftp'):
+            raise FtpDataOldVersion("Please rename the [ftp] section to [branch]. " +
+                                    "Take a look at the README for more information")
+        else:
+            raise SectionNotFound("Your .git/ftpdata file does not contain a section " +
+                                  "named '%s'" % options.section)
 
 
 def boolish(s):
