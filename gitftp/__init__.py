@@ -23,6 +23,8 @@ try:
 except ImportError:
     import ConfigParser
 
+__version__ = "1.3.0-dev.30"
+
 # Note about Tree.path/Blob.path: *real* Git trees and blobs don't
 # actually provide path information, but the git-python bindings, as a
 # convenience keep track of this if you access the blob from an index.
@@ -62,8 +64,7 @@ def main():
     configure_logging(options)
 
     if options.show_version:
-        version_str = "1.3.0-dev.30"
-        print("git-ftp version %s " % (version_str))
+        print("git-ftp version %s " % (__version__))
         sys.exit(0)
 
     if args:

@@ -1,7 +1,8 @@
 from setuptools import setup
+from gitftp import __version__
 
 setup(name='gitftp',
-      version="1.3.0-dev.30",
+      version=__version__,
       author='Peter van der Does',
       author_email='peter@avirtualhome.com',
       license='MIT',
