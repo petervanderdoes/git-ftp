@@ -11,11 +11,9 @@ import optparse
 import os.path
 import sys
 import textwrap
-from distutils.version import LooseVersion
 from io import BytesIO
 
 import pathspec
-from git import Git, InvalidGitRepositoryError, Repo, __version__ as git_version
 
 import gitftp.common
 import gitftp.upload
@@ -25,11 +23,21 @@ try:
 except ImportError:
     import ConfigParser
 
+__version__ = '1.3.0.dev52'
+
+# Note about Tree.path/Blob.path: *real* Git trees and blobs don't
+# actually provide path information, but the git-python bindings, as a
+# convenience keep track of this if you access the blob from an index.
+# This ends up considerably simplifying our code, but do be careful!
+
+from distutils.version import LooseVersion
+from git import __version__ as git_version
+
 if LooseVersion(git_version) < '0.3.0':
     print('git-ftp requires git-python 0.3.0 or newer; %s provided.' % git_version)
     exit(1)
 
-__version__ = '1.3.0.dev52'
+from git import Repo, Git, InvalidGitRepositoryError
 
 
 class BranchNotFound(Exception):
@@ -56,7 +64,7 @@ def main():
     configure_logging(options)
 
     if options.show_version:
-        print("git-ftp version %s " % __version__)
+        print("git-ftp version %s " % (__version__))
         sys.exit(0)
 
     if args:
@@ -95,8 +103,8 @@ def main():
     if oldtree.hexsha == tree.hexsha:
         logging.info('Nothing to do!')
     else:
-        gitftp_upload = gitftp.upload.Upload(repo, oldtree, tree, ftp, [base], spec)
-        gitftp_upload.diff()
+        upload = gitftp.upload.Upload(repo, oldtree, tree, ftp, [base], spec)
+        upload.diff()
         ftp.storbinary('STOR git-rev.txt', BytesIO(commit.hexsha.encode('utf-8')))
 
     ftp.quit()
@@ -112,7 +120,6 @@ def get_branch(base, options, repo):
 
 
 def get_repo(cwd):
-    repo = None
     try:
         repo = Repo(cwd)
     except InvalidGitRepositoryError:
@@ -125,7 +132,6 @@ def get_value(option, default):
     if not option:
         return default
     return option
-
 
 def get_ftp_class(options):
     if options.ftp.ssl:
@@ -142,19 +148,19 @@ def get_ftp_class(options):
 
 def get_old_tree(ftp, options, repo):
     """Get the tree to which we are comparing the new tree too"""
-    revision_hash = options.revision
-    if not options.force and not revision_hash:
-        hash_file = BytesIO()
+    hash = options.revision
+    if not options.force and not hash:
+        hashFile = BytesIO()
         try:
-            ftp.retrbinary('RETR git-rev.txt', hash_file.write)
-            revision_hash = hash_file.getvalue().decode('utf-8').strip()
+            ftp.retrbinary('RETR git-rev.txt', hashFile.write)
+            hash = hashFile.getvalue().decode('utf-8').strip()
         except ftplib.error_perm:
             pass
-    if not revision_hash:
+    if not hash:
         # Diffing against an empty tree will cause a full upload.
         oldtree = gitftp.common.get_empty_tree(repo)
     else:
-        oldtree = repo.commit(revision_hash).tree
+        oldtree = repo.commit(hash).tree
     return oldtree
 
 
@@ -198,7 +204,7 @@ def configure_logging(options):
     logger.addHandler(ch)
 
 
-class FtpData:
+class FtpData():
     password = None
     username = None
     hostname = None
@@ -261,7 +267,7 @@ def get_ftp_creds_from_file(cfg, ftpdata, options, repo):
     if not cfg.has_section(options.section):
         handle_gitflow_wildcard_branches(git_config, options)
 
-    if not cfg.has_section(options.section):
+    if (not cfg.has_section(options.section)):
         if cfg.has_section('ftp'):
             raise FtpDataOldVersion("Please rename the [ftp] section to [branch]. " +
                                     "Take a look at the README for more information")
@@ -317,7 +323,7 @@ def ask_ok(prompt, retries=4, complaint='Yes or no, please!'):
         r = boolish(ok)
         if r is not None:
             return r
-        retries -= 1
+        retries = retries - 1
         if retries < 0:
             raise IOError('Wrong user input.')
         print(complaint)

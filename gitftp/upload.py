@@ -4,7 +4,7 @@ import posixpath
 
 from git import Blob, Submodule
 
-import gitftp.common
+import gitftp.common as Common
 
 
 class Upload:
@@ -54,7 +54,7 @@ class Upload:
         module_tree = module.commit(node.hexsha).tree
 
         if status == "A":
-            module_oldtree = gitftp.common.get_empty_tree(module)
+            module_oldtree = Common.get_empty_tree(module)
         else:
             oldnode = self.oldtree[file]
             assert isinstance(oldnode, Submodule)  # TODO: What if not?
@@ -98,20 +98,19 @@ class Upload:
 
     def remove_subdirectories(self, file):
         """Remove potential sub directories"""
-        for directory in self.generate_parent_dirs(file):
+        for dir in self.generate_parent_dirs(file):
             try:
                 # unfortunately, dir in tree doesn't work for subdirs
-                self.tree[directory]
+                self.tree[dir]
             except KeyError:
                 try:
-                    self.ftp.rmd(directory)
-                    logging.debug('Cleaned away ' + directory)
+                    self.ftp.rmd(dir)
+                    logging.debug('Cleaned away ' + dir)
                 except ftplib.error_perm:
-                    logging.info('Did not clean away ' + directory)
+                    logging.info('Did not clean away ' + dir)
                     break
 
-    @staticmethod
-    def generate_parent_dirs(x):
+    def generate_parent_dirs(self, x):
         # invariant: x is a filename
         while '/' in x:
             x = posixpath.dirname(x)
@@ -129,8 +128,7 @@ class Upload:
     def match_file(self, file_path):
         return len(list(self.ignore.match_files([file_path]))) > 0  # This should not be so complicated
 
-    @staticmethod
-    def is_special_file(name):
+    def is_special_file(self, name):
         """Returns true if a file is some special Git metadata and not content."""
         return posixpath.basename(name) in ['.gitignore', '.gitattributes', '.gitmodules', '.gitftpignore']
 
@@ -148,7 +146,7 @@ class Upload:
             pass
         self.ftp.storbinary('STOR ' + blob.path, blob.data_stream)
         try:
-            self.ftp.voidcmd('SITE CHMOD ' + gitftp.common.format_mode(blob.mode) + ' ' + blob.path)
+            self.ftp.voidcmd('SITE CHMOD ' + Common.format_mode(blob.mode) + ' ' + blob.path)
         except ftplib.error_perm:
             # Ignore Windows chmod errors
             logging.warning('Failed to chmod ' + blob.path)
