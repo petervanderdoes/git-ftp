@@ -10,7 +10,7 @@ directory.  You could upload a full tarball of your website every
 time you update but that's wasteful.  git-ftp.py only uploads the
 files that changed.
 
-This fork has been adapted to work with `git-flow (AVH Edition)<http://bit.ly/S2k1S2)>`_.
+This fork has been adapted to work with `git-flow (AVH Edition) <http://bit.ly/S2k1S2)>`_.
 
 Installation
 ------------
