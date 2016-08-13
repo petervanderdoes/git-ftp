@@ -11,9 +11,8 @@ This fork has been adapted to work with `git-flow (AVH Edition) <http://bit.ly/S
 Installation
 ------------
 Requirements: `git-python 0.3.x <http://gitorious.org/git-python>`_  
-it can be installed with `easy_install gitpython`
+it can be installed with ``easy_install gitpython``
 
-`sudo make Makefile`
 
 Usage
 -----
