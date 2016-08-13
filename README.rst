@@ -10,11 +10,11 @@ directory.  You could upload a full tarball of your website every
 time you update but that's wasteful.  git-ftp.py only uploads the
 files that changed.
 
-This fork has been adapted to work with [git-flow (AVH Edition)](http://bit.ly/S2k1S2).
+This fork has been adapted to work with `git-flow (AVH Edition)<http://bit.ly/S2k1S2)>`_.
 
 Installation
 ------------
-Requirements: [git-python 0.3.x](http://gitorious.org/git-python)  
+Requirements: `git-python 0.3.x <http://gitorious.org/git-python>`_  
 it can be installed with `easy_install gitpython`
 
 `sudo make Makefile`
@@ -34,7 +34,7 @@ present there.
 Storing the FTP credentials
 ---------------------------
 
-You can place FTP credentials in `.git/ftpdata`, as such:
+You can place FTP credentials in `.git/ftpdata`, as such::
 
     [master]
     username=me
@@ -74,6 +74,8 @@ The prefix for a feature branch is set to `feature`.
 
 The following is setup in `.git/ftpdata`
  
+::
+
     [feature/*]
     username=me
     password=s00perP4zzw0rd
@@ -98,14 +100,15 @@ Exluding certain files from uploading
 -------------------------------------
 
 By default the following files will never be uploaded:
-- `.gitignore`
-- `.gitattributes`
-- `.gitmodules`
-- `.gitftpignore`
+
+* `.gitignore`
+* `.gitattributes`
+* `.gitmodules`
+* `.gitftpignore`
 
 Similarly to `.gitignore` you can specify files which you do not wish to upload.
 The default file with ignore patterns is `.gitftpignore` in project root directory,
-however you can specify your own for every branch in .git/ftpdata:
+however you can specify your own for every branch in .git/ftpdata::
 
     [branch]
     ... credentials ...
@@ -121,7 +124,7 @@ to act as a proxy between the git users and the ftp server.
 Pushing on branches that don't have an entry in the `ftpdata` configuration file
 will have the default git behavior (`git-ftp.py` doesn't get called).
 One advantage is that **users do not get to know the ftp credentials** (perfect for interns).
-This is how the workflow looks like:
+This is how the workflow looks like::
 
     User1 --+                          +--> FTP_staging
              \                        /
@@ -129,7 +132,7 @@ This is how the workflow looks like:
              /                        \
     User3 --+                          +--> FTP_dev
 
-This is how the setup looks like (One `ftpdata` configuration file, and a symlink to the update hook):
+This is how the setup looks like (One `ftpdata` configuration file, and a symlink to the update hook)::
 
     root@server:/path-to-repo/repo.git# ls
     HEAD  ORIG_HEAD  branches  config  description  ftpdata  hooks  info  objects  packed-refs  refs
