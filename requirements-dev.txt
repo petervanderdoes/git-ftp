@@ -1,0 +1,9 @@
+#
+# Requirements during development
+#
+
+# Production packages
+-r requirements.txt
+
+# Development packages
+pep8

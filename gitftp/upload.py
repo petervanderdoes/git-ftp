@@ -17,7 +17,8 @@ class Upload:
         self.ignore = spec
 
     def diff(self):
-        diff = self.repo.git.diff("--name-status", "--no-renames", "-z", self.oldtree.hexsha, self.tree.hexsha)
+        diff = self.repo.git.diff("--name-status", "--no-renames", "-z", self.oldtree.hexsha,
+                                  self.tree.hexsha)
         diff = iter(diff.split("\0"))
 
         for line in diff:
@@ -126,11 +127,13 @@ class Upload:
         return False
 
     def match_file(self, file_path):
-        return len(list(self.ignore.match_files([file_path]))) > 0  # This should not be so complicated
+        return len(
+            list(self.ignore.match_files([file_path]))) > 0  # This should not be so complicated
 
     def is_special_file(self, name):
         """Returns true if a file is some special Git metadata and not content."""
-        return posixpath.basename(name) in ['.gitignore', '.gitattributes', '.gitmodules', '.gitftpignore']
+        return posixpath.basename(name) in ['.gitignore', '.gitattributes', '.gitmodules',
+                                            '.gitftpignore']
 
     def upload(self, blob, quiet=False):
         """

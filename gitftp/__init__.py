@@ -133,6 +133,7 @@ def get_value(option, default):
         return default
     return option
 
+
 def get_ftp_class(options):
     if options.ftp.ssl:
         if hasattr(ftplib, 'FTP_TLS'):  # SSL new in 2.7+
@@ -140,7 +141,8 @@ def get_ftp_class(options):
             ftp.prot_p()
             logging.info("Using SSL")
         else:
-            raise FtpSslNotSupported("Python is too old for FTP SSL. Try using Python 2.7 or later.")
+            raise FtpSslNotSupported(
+                "Python is too old for FTP SSL. Try using Python 2.7 or later.")
     else:
         ftp = ftplib.FTP(options.ftp.hostname, options.ftp.username, options.ftp.password)
     return ftp
