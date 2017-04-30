@@ -4,6 +4,9 @@
 
 # Changelog
 
+#### 1.4.0.dev1
+* Preparation for new development cycle.
+
 #### 1.3.0
 [Peter van der Does][petervanderdoes]
 * Modify for Python3 usage
