@@ -13,7 +13,7 @@ setup(name='gitftp',
       description='Quick and efficient publishing of Git repositories over FTP',
       packages=['gitftp'],
       include_package_data=True,
-      entry_points={'console_scripts': ['git-ftp = gitftp:main_func',
+      entry_points={'console_scripts': ['git-ftp = gitftp.__init__:main',
                                         ],
                     },
       package_data={'': ['README.rst']
