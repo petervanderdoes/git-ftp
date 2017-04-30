@@ -33,7 +33,7 @@ try:
 except ImportError:
     import ConfigParser
 
-__version__ = '1.3.0.dev52'
+__version__ =  '1.3.0'
 
 # Note about Tree.path/Blob.path: *real* Git trees and blobs don't
 # actually provide path information, but the git-python bindings, as a

@@ -4,7 +4,8 @@
 
 # Changelog
 
-#### 1.3.0.dev52
+#### 1.3.0
+[Peter van der Does][petervanderdoes]
 * Modify for Python3 usage
 * Implement full use of wildmatch pattern for .gitftpignore.
   Previously the pattern you could use for .gitftpignore was not fully compatible
