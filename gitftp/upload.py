@@ -1,9 +1,15 @@
+# Standard Library
 import ftplib
 import logging
 import posixpath
 
-from git import Blob, Submodule
+# Third Party
+from git import (
+    Blob,
+    Submodule
+)
 
+# gitftp
 import gitftp.common as Common
 
 

@@ -1,5 +1,9 @@
+# Third Party
 from setuptools import setup
+
+# gitftp
 from gitftp import __version__
+
 
 setup(name='gitftp',
       version=__version__,
