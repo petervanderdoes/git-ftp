@@ -1,6 +1,10 @@
 git-ftp.py: Quick and efficient publishing of Git repositories over FTP
 =======================================================================
 
+.. image:: https://landscape.io/github/petervanderdoes/git-ftp/develop/landscape.svg?style=flat
+   :target: https://landscape.io/github/petervanderdoes/git-ftp/develop
+   :alt: Code Health
+
 Introduction
 ------------
 
