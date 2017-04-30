@@ -42,7 +42,7 @@ __version__ = '1.3.0.dev52'
 
 
 if LooseVersion(git_version) < '0.3.0':
-    print('git-ftp requires git-python 0.3.0 or newer; %s provided.' % git_version)
+    print('git-ftp requires git-python 0.3.0 or newer; {0!s} provided.'.format(git_version))
     exit(1)
 
 
@@ -70,7 +70,7 @@ def main():
     configure_logging(options)
 
     if options.show_version:
-        print("git-ftp version %s " % (__version__))
+        print("git-ftp version {0!s} ".format(__version__))
         sys.exit(0)
 
     if args:
@@ -246,7 +246,7 @@ def get_ftp_creds(repo, options):
     if os.path.isfile(ftpdata):
         get_ftp_creds_from_file(cfg, ftpdata, options, repo)
     else:
-        print("Please configure settings for branch '%s'" % options.section)
+        print("Please configure settings for branch '{0!s}'".format(options.section))
         options.ftp.username = input('FTP Username: ')
         options.ftp.password = getpass.getpass('FTP Password: ')
         options.ftp.hostname = input('FTP Hostname: ')
@@ -281,7 +281,7 @@ def get_ftp_creds_from_file(cfg, ftpdata, options, repo):
                                     "Take a look at the README for more information")
         else:
             raise SectionNotFound("Your .git/ftpdata file does not contain a section " +
-                                  "named '%s'" % options.section)
+                                  "named '{0!s}'".format(options.section))
 
     # just in case you do not want to store your ftp password.
     try:
