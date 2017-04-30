@@ -1,0 +1,10 @@
+#
+# Requirements during development
+#
+
+# Production packages
+-r requirements.txt
+
+# Development packages
+flake8-putty
+isort

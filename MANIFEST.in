@@ -1,0 +1,5 @@
+recursive-include gitftp *.py
+include distribute_setup.py
+include LICENSE
+include *.txt
+include *.rst

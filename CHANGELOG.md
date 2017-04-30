@@ -4,6 +4,14 @@
 
 # Changelog
 
+#### 1.3.0
+[Peter van der Does][petervanderdoes]
+* Modify for Python3 usage
+* Implement full use of wildmatch pattern for .gitftpignore.
+  Previously the pattern you could use for .gitftpignore was not fully compatible
+  with the wildmatch pattern, used by gitignore. For example you could not use negate.
+* Using gitflow branches with non default prefix does not work.
+
 #### 1.2.0
 * Update from upstream
 
