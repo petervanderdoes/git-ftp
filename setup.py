@@ -4,7 +4,6 @@ from setuptools import setup
 # gitftp
 from gitftp import __version__
 
-
 setup(name='gitftp',
       version=__version__,
       author='Peter van der Does',
@@ -13,11 +12,8 @@ setup(name='gitftp',
       description='Quick and efficient publishing of Git repositories over FTP',
       packages=['gitftp'],
       include_package_data=True,
-      entry_points={'console_scripts': ['git-ftp = gitftp.__init__:main',
-                                        ],
-                    },
-      package_data={'': ['README.rst']
-                    },
+      entry_points={'console_scripts': ['git-ftp = gitftp.__init__:main', ], },
+      package_data={'': ['README.rst']},
       install_requires=['pathspec>=0.4.0',
                         'GitPython>=2.0.8',
                         ],
