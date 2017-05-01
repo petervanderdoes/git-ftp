@@ -156,19 +156,19 @@ def get_ftp_class(options):
 
 def get_old_tree(ftp, options, repo):
     """Get the tree to which we are comparing the new tree too"""
-    hash = options.revision
-    if not options.force and not hash:
-        hashFile = BytesIO()
+    revision = options.revision
+    if not options.force and not revision:
+        hash_file = BytesIO()
         try:
-            ftp.retrbinary('RETR git-rev.txt', hashFile.write)
-            hash = hashFile.getvalue().decode('utf-8').strip()
+            ftp.retrbinary('RETR git-rev.txt', hash_file.write)
+            revision = hash_file.getvalue().decode('utf-8').strip()
         except ftplib.error_perm:
             pass
-    if not hash:
+    if not revision:
         # Diffing against an empty tree will cause a full upload.
         oldtree = gitftp.common.get_empty_tree(repo)
     else:
-        oldtree = repo.commit(hash).tree
+        oldtree = repo.commit(revision).tree
     return oldtree
 
 

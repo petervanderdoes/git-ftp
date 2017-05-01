@@ -10,7 +10,7 @@ from git import (
 )
 
 # gitftp
-import gitftp.common as Common
+import gitftp.common as common
 
 
 class Upload:
@@ -57,20 +57,20 @@ class Upload:
         self.handle_submodule(file, node, status)
 
     def handle_submodule(self, file, node, status):
-        module = node.module()
-        module_tree = module.commit(node.hexsha).tree
+        node_module = node.module()
+        module_tree = node_module.commit(node.hexsha).tree
 
         if status == "A":
-            module_oldtree = Common.get_empty_tree(module)
+            module_oldtree = common.get_empty_tree(node_module)
         else:
             oldnode = self.oldtree[file]
             assert isinstance(oldnode, Submodule)  # TODO: What if not?
-            module_oldtree = module.commit(oldnode.hexsha).tree
+            module_oldtree = node_module.commit(oldnode.hexsha).tree
 
         module_base = self.base + [node.path]
         logging.info('Entering submodule %s', node.path)
         self.ftp.cwd(posixpath.join(*module_base))
-        upload = Upload(module, module_oldtree, module_tree, self.ftp, module_base, self.ignore)
+        upload = Upload(node_module, module_oldtree, module_tree, self.ftp, module_base, self.ignore)
         upload.diff()
         logging.info('Leaving submodule %s', node.path)
         self.ftp.cwd(posixpath.join(*self.base))
@@ -105,27 +105,21 @@ class Upload:
 
     def remove_subdirectories(self, file):
         """Remove potential sub directories"""
-        for dir in self.generate_parent_dirs(file):
+        for directory in generate_parent_dirs(file):
             try:
                 # unfortunately, dir in tree doesn't work for subdirs
-                self.tree[dir]
+                self.tree[directory]
             except KeyError:
                 try:
-                    self.ftp.rmd(dir)
-                    logging.debug('Cleaned away ' + dir)
+                    self.ftp.rmd(directory)
+                    logging.debug('Cleaned away ' + directory)
                 except ftplib.error_perm:
-                    logging.info('Did not clean away ' + dir)
+                    logging.info('Did not clean away ' + directory)
                     break
 
-    def generate_parent_dirs(self, x):
-        # invariant: x is a filename
-        while '/' in x:
-            x = posixpath.dirname(x)
-            yield x
-
-    def is_ignored_path(self, path, quiet=False):
+    def is_ignored_path(self, path):
         """Returns true if a filepath is ignored by gitftpignore."""
-        if self.is_special_file(path):
+        if is_special_file(path):
             return True
         if self.ignore is not None:
             if self.match_file(path):
@@ -135,11 +129,6 @@ class Upload:
     def match_file(self, file_path):
         return len(
             list(self.ignore.match_files([file_path]))) > 0  # This should not be so complicated
-
-    def is_special_file(self, name):
-        """Returns true if a file is some special Git metadata and not content."""
-        return posixpath.basename(name) in ['.gitignore', '.gitattributes', '.gitmodules',
-                                            '.gitftpignore']
 
     def upload(self, blob, quiet=False):
         """
@@ -155,8 +144,21 @@ class Upload:
             pass
         self.ftp.storbinary('STOR ' + blob.path, blob.data_stream)
         try:
-            self.ftp.voidcmd('SITE CHMOD ' + Common.format_mode(blob.mode) + ' ' + blob.path)
+            self.ftp.voidcmd('SITE CHMOD ' + common.format_mode(blob.mode) + ' ' + blob.path)
         except ftplib.error_perm:
             # Ignore Windows chmod errors
             logging.warning('Failed to chmod ' + blob.path)
             pass
+
+
+def generate_parent_dirs(x):
+    # invariant: x is a filename
+    while '/' in x:
+        x = posixpath.dirname(x)
+        yield x
+
+
+def is_special_file(name):
+    """Returns true if a file is some special Git metadata and not content."""
+    return posixpath.basename(name) in ['.gitignore', '.gitattributes', '.gitmodules',
+                                        '.gitftpignore']
