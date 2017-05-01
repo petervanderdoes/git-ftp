@@ -8,7 +8,7 @@ git-ftp: painless, quick and easy working copy syncing over FTP
 import ftplib
 import getpass
 import logging
-import optparse
+import argparse
 import os.path
 import sys
 import textwrap
@@ -33,7 +33,7 @@ try:
 except ImportError:
     import ConfigParser
 
-__version__ =  '1.4.0.dev1'
+__version__ =  '1.4.0.dev4'
 
 # Note about Tree.path/Blob.path: *real* Git trees and blobs don't
 # actually provide path information, but the git-python bindings, as a
@@ -65,7 +65,7 @@ class SectionNotFound(Exception):
 def main():
     Git.git_binary = 'git'  # Windows doesn't like env
 
-    options, args = parse_args()
+    options = parse_args()
 
     configure_logging(options)
 
@@ -73,8 +73,8 @@ def main():
         print("git-ftp version {0!s} ".format(__version__))
         sys.exit(0)
 
-    if args:
-        cwd = args[0]
+    if options.current_directory:
+        cwd = options.current_directory
     else:
         cwd = "."
     repo = get_repo(cwd)
@@ -179,27 +179,46 @@ def parse_args():
            website via FTP, but is smart and only uploads file
            that have changed.
            """
-    parser = optparse.OptionParser(usage, description=textwrap.dedent(desc))
-    parser.add_option('-f', '--force', dest="force", action="store_true", default=False,
-                      help="force the reupload of all files")
-    parser.add_option('-q', '--quiet', dest="quiet", action="store_true", default=False,
-                      help="quiet output")
-    parser.add_option('-r', '--revision', dest="revision", default=None,
-                      help="use this revision instead of the server stored one")
-    parser.add_option('-b', '--branch', dest="branch", default=None,
-                      help="use this branch instead of the active one")
-    parser.add_option('-c', '--commit', dest="commit", default=None,
-                      help="use this commit instead of HEAD")
-    parser.add_option('--version', action="store_true", dest="show_version",
-                      default=False, help='displays the version number')
-    parser.add_option('-s', '--section', dest="section", default=None,
-                      help="use this section from ftpdata instead of branch name")
-    options, args = parser.parse_args()
+    parser = argparse.ArgumentParser(usage, description=textwrap.dedent(desc))
+    parser.add_argument('-f', '--force',
+                        action="store_true",
+                        default=False,
+                        dest="force",
+                        help="force the reupload of all files")
+    parser.add_argument('-q', '--quiet',
+                        action="store_true",
+                        default=False,
+                        dest="quiet",
+                        help="quiet output")
+    parser.add_argument('-r', '--revision',
+                        default=None,
+                        dest="revision",
+                        help="use this revision instead of the server stored one")
+    parser.add_argument('-b', '--branch',
+                        default=None,
+                        dest="branch",
+                        help="use this branch instead of the active one")
+    parser.add_argument('-c', '--commit',
+                        default=None,
+                        dest="commit",
+                        help="use this commit instead of HEAD")
+    parser.add_argument('--version',
+                        action="store_true",
+                        default=False,
+                        dest="show_version",
+                        help='displays the version number')
+    parser.add_argument('-s', '--section',
+                        default=None,
+                        dest="section",
+                        help="use this section from ftpdata instead of branch name")
+    parser.add_argument('current_directory',
+                        nargs='?')
+    args = parser.parse_args()
 
-    if len(args) > 1:
-        parser.error("too many arguments")
+    # if len(args) > 1:
+    #    parser.error("too many arguments")
 
-    return options, args
+    return args
 
 
 def configure_logging(options):
@@ -335,7 +354,3 @@ def ask_ok(prompt, retries=4, complaint='Yes or no, please!'):
         if retries < 0:
             raise IOError('Wrong user input.')
         print(complaint)
-
-
-if __name__ == "__main__":
-    main()
