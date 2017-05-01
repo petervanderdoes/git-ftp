@@ -148,7 +148,6 @@ class Upload:
         except ftplib.error_perm:
             # Ignore Windows chmod errors
             logging.warning('Failed to chmod ' + blob.path)
-            pass
 
 
 def generate_parent_dirs(x):

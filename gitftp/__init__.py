@@ -29,11 +29,11 @@ import gitftp.common
 import gitftp.upload
 
 try:
-    import configparser as ConfigParser
+    import configparser as config_parser
 except ImportError:
-    import ConfigParser
+    import ConfigParser as config_parser
 
-__version__ =  '1.4.0.dev4'
+__version__ = '1.4.0.dev4'
 
 # Note about Tree.path/Blob.path: *real* Git trees and blobs don't
 # actually provide path information, but the git-python bindings, as a
@@ -109,8 +109,8 @@ def main():
     if oldtree.hexsha == tree.hexsha:
         logging.info('Nothing to do!')
     else:
-        upload = gitftp.upload.Upload(repo, oldtree, tree, ftp, [base], spec)
-        upload.diff()
+        remote = gitftp.upload.Upload(repo, oldtree, tree, ftp, [base], spec)
+        remote.diff()
         ftp.storbinary('STOR git-rev.txt', BytesIO(commit.hexsha.encode('utf-8')))
 
     ftp.quit()
@@ -231,7 +231,7 @@ def configure_logging(options):
     logger.addHandler(ch)
 
 
-class FtpData():
+class FtpData:
     password = None
     username = None
     hostname = None
@@ -261,7 +261,7 @@ def get_ftp_creds(repo, options):
 
     ftpdata = os.path.join(repo.git_dir, "ftpdata")
     options.ftp = FtpData()
-    cfg = ConfigParser.ConfigParser()
+    cfg = config_parser.ConfigParser()
     if os.path.isfile(ftpdata):
         get_ftp_creds_from_file(cfg, ftpdata, options, repo)
     else:
@@ -294,7 +294,7 @@ def get_ftp_creds_from_file(cfg, ftpdata, options, repo):
     if not cfg.has_section(options.section):
         handle_gitflow_wildcard_branches(git_config, options)
 
-    if (not cfg.has_section(options.section)):
+    if not cfg.has_section(options.section):
         if cfg.has_section('ftp'):
             raise FtpDataOldVersion("Please rename the [ftp] section to [branch]. " +
                                     "Take a look at the README for more information")
@@ -305,7 +305,7 @@ def get_ftp_creds_from_file(cfg, ftpdata, options, repo):
     # just in case you do not want to store your ftp password.
     try:
         options.ftp.password = cfg.get(options.section, 'password')
-    except ConfigParser.NoOptionError:
+    except config_parser.NoOptionError:
         options.ftp.password = getpass.getpass('FTP Password: ')
 
     options.ftp.username = cfg.get(options.section, 'username')
@@ -313,11 +313,11 @@ def get_ftp_creds_from_file(cfg, ftpdata, options, repo):
     options.ftp.remotepath = cfg.get(options.section, 'remotepath')
     try:
         options.ftp.ssl = boolish(cfg.get(options.section, 'ssl'))
-    except ConfigParser.NoOptionError:
+    except config_parser.NoOptionError:
         options.ftp.ssl = False
     try:
         options.ftp.gitftpignore = cfg.get(options.section, 'gitftpignore')
-    except ConfigParser.NoOptionError:
+    except config_parser.NoOptionError:
         options.ftp.gitftpignore = '.gitftpignore'
 
 
